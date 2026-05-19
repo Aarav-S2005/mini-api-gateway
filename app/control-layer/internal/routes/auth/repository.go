@@ -22,15 +22,15 @@ func (r *Repository) users() *mongo.Collection {
 	return r.db.Collection("users")
 }
 
-func (r *Repository) findUserByUsername(ctx context.Context, username string) (models.Users, error) {
+func (r *Repository) findUserByUsername(ctx context.Context, username string) (models.User, error) {
 	userCollection := r.users()
-	var user models.Users
+	var user models.User
 	err := userCollection.FindOne(ctx, bson.M{"username": username}).Decode(&user)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return models.Users{}, app_error.NotFound("username not found", err)
+			return models.User{}, app_error.NotFound("username not found", err)
 		}
-		return models.Users{}, app_error.InternalServer(err)
+		return models.User{}, app_error.InternalServer(err)
 	}
 	return user, nil
 }
