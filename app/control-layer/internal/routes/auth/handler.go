@@ -13,10 +13,10 @@ type Handler struct {
 	service *Service
 }
 
-func NewHandler(repo *Repository) *Handler {
+func NewHandler(repo *Repository) chi.Router {
 	h := &Handler{service: NewService(repo)}
-	h.initAuthRoutes()
-	return h
+	r := h.initAuthRoutes()
+	return r
 }
 
 func (h *Handler) initAuthRoutes() chi.Router {
