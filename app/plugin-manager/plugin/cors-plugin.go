@@ -10,6 +10,7 @@ import (
 type CorsPlugin struct{}
 
 type CorsConfig struct {
+	Enabled        bool     `json:"enabled"`
 	AllowedOrigins []string `json:"allowed_origins" bson:"allowed_origins"`
 	AllowedMethods []string `json:"allowed_methods" bson:"allowed_methods"`
 	AllowedHeaders []string `json:"allowed_headers" bson:"allowed_headers"`
@@ -47,6 +48,10 @@ func (c *CorsPlugin) CreateMiddleware(config map[string]interface{}) (Middleware
 	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !cfg.Enabled {
+				next.ServeHTTP(w, r)
+				return
+			}
 			origin := r.Header.Get("Origin")
 
 			for _, allowedOrigin := range cfg.AllowedOrigins {

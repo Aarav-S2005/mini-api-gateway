@@ -11,6 +11,7 @@ import (
 type IpFilterPlugin struct{}
 
 type IpFilterConfig struct {
+	Enabled        bool     `json:"enabled"`
 	BlackListedIps []string `json:"black_listed_ips"`
 	WhiteListedIps []string `json:"white_listed_ips"`
 }
@@ -66,6 +67,10 @@ func (i *IpFilterPlugin) CreateMiddleware(config map[string]interface{}) (Middle
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !cfg.Enabled {
+				next.ServeHTTP(w, r)
+				return
+			}
 			host, err := getClientIP(r)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
