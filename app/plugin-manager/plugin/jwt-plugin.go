@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"context"
 	"crypto"
 	"encoding/json"
 	"errors"
@@ -13,8 +12,6 @@ import (
 
 type Source string
 type contextKey string
-
-const userIDAuthKey contextKey = "user_id"
 
 const (
 	SourceCookie Source = "cookie"
@@ -37,7 +34,7 @@ type JwtConfig struct {
 }
 
 func (j JwtPlugin) Name() string {
-	return "jwt"
+	return "jwt-auth"
 }
 
 func (j JwtPlugin) Validate(config map[string]interface{}) error {
@@ -119,9 +116,8 @@ func (j JwtPlugin) CreateMiddleware(config map[string]interface{}) (MiddlewareFu
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return
 			}
-
-			ctx := context.WithValue(r.Context(), userIDAuthKey, userID)
-			next.ServeHTTP(w, r.WithContext(ctx))
+			r.Header.Set("X-User-Id", userID)
+			next.ServeHTTP(w, r)
 		})
 	}, nil
 }

@@ -71,7 +71,7 @@ func (rl *TokenBucketRateLimiter) Middleware(next http.Handler) http.Handler {
 			}
 			next.ServeHTTP(w, r)
 		} else if rl.KeyBy == KeyByAPIKey {
-			apiKey := r.Header.Get("X-Api-Key")
+			apiKey := r.Header.Get("X-Api-GW-Key")
 			if apiKey == "" {
 				http.Error(w, "could not parse api key", http.StatusBadRequest)
 				return

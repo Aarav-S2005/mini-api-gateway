@@ -71,7 +71,7 @@ func (rl *FixedWindowRateLimiter) Middleware(next http.Handler) http.Handler {
 			}
 			key = ip
 		} else if rl.keyBy == KeyByAPIKey {
-			key = r.Header.Get("X-Api-Key")
+			key = r.Header.Get("X-Api-GW-Key")
 			if key == "" {
 				http.Error(w, "could not parse api key", http.StatusBadRequest)
 				return
