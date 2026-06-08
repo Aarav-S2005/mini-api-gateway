@@ -22,7 +22,7 @@ func Authenticator() func(http.Handler) http.Handler {
 	return jwtauth.Authenticator(tokenAuth)
 }
 
-func SignJwt(username string) (string, error) {
+func SignJwt(userID string) (string, error) {
 	if tokenAuth == nil {
 		return "", errors.New("auth not initialized")
 	}
@@ -30,9 +30,9 @@ func SignJwt(username string) (string, error) {
 	now := time.Now()
 
 	_, tokenString, err := tokenAuth.Encode(map[string]interface{}{
-		"user_id": username,
-		"exp":     now.Add(24 * time.Hour).Unix(),
-		"iat":     now.Unix(),
+		"userID": userID,
+		"exp":    now.Add(24 * time.Hour).Unix(),
+		"iat":    now.Unix(),
 	})
 
 	if err != nil {

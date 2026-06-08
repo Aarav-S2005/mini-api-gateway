@@ -35,11 +35,12 @@ func (r *Repository) findUserByUsername(ctx context.Context, username string) (m
 	return user, nil
 }
 
-func (r *Repository) addUser(ctx context.Context, username, password string) error {
+func (r *Repository) addUser(ctx context.Context, username, password string) (bson.ObjectID, error) {
 	userCollection := r.users()
-	_, err := userCollection.InsertOne(ctx, bson.M{"username": username, "password": password})
+	inserted, err := userCollection.InsertOne(ctx, bson.M{"username": username, "password": password})
 	if err != nil {
-		return app_error.InternalServer(err)
+		return bson.ObjectID{}, err
 	}
-	return nil
+	id := inserted.InsertedID.(bson.ObjectID)
+	return id, nil
 }

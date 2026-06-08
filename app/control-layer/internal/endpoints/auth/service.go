@@ -50,10 +50,13 @@ func (s *Service) signUpUser(ctx context.Context, req RequestDTO) (string, error
 	if err != nil {
 		return "", app_error.InternalServer(err)
 	}
-	err = s.repo.addUser(ctx, username, hashedPassword)
+	id, err := s.repo.addUser(ctx, username, hashedPassword)
 	if err != nil {
 		return "", app_error.InternalServer(err)
 	}
-	token, err := middleware.SignJwt(username)
+	token, err := middleware.SignJwt(id.String())
+	if err != nil {
+		return "", app_error.InternalServer(err)
+	}
 	return token, nil
 }
