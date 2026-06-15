@@ -47,7 +47,7 @@ type GetProjectRoutesResponse struct {
 	Routes []routeResponseModel `json:"routes"`
 }
 
-type AddRouteRequest struct {
+type AddUpdateRouteRequest struct {
 	Path      string          `json:"path"`
 	TargetURL string          `json:"target_url"`
 	Method    string          `json:"method"`

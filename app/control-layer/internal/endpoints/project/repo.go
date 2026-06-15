@@ -311,7 +311,7 @@ func (repo *Repository) getAllProjectRoutes(ctx context.Context, projectID, user
 	return routes, nil
 }
 
-func (repo *Repository) addProjectRoute(ctx context.Context, projectID, userID bson.ObjectID, route AddRouteRequest) (bson.ObjectID, error) {
+func (repo *Repository) addProjectRoute(ctx context.Context, projectID, userID bson.ObjectID, route AddUpdateRouteRequest) (bson.ObjectID, error) {
 	projectCollection := repo.getProjectCollection()
 	routeCollection := repo.getRouteCollection()
 	filter := bson.M{
@@ -344,4 +344,59 @@ func (repo *Repository) addProjectRoute(ctx context.Context, projectID, userID b
 	}
 	id := inserted.InsertedID.(bson.ObjectID)
 	return id, nil
+}
+
+func (repo *Repository) updateProjectRoute(ctx context.Context, routeID, projectID, userID bson.ObjectID, route AddUpdateRouteRequest) error {
+	projectCollection := repo.getProjectCollection()
+	routeCollection := repo.getRouteCollection()
+	filter := bson.M{
+		"_id": projectID,
+		"$or": bson.A{
+			bson.M{
+				"owner_id": userID,
+			},
+			bson.M{
+				"access_list.user_id":    userID,
+				"access_list.permission": models.PermissionEditing,
+			},
+		},
+	}
+	project := projectCollection.FindOne(ctx, filter)
+	if project.Err() != nil {
+		return project.Err()
+	}
+	updated, err := routeCollection.UpdateOne(ctx,
+		bson.M{"_id": routeID},
+		bson.M{"$set": bson.M{
+			"path":       route.Path,
+			"target_url": route.TargetURL,
+			"method":     route.Method,
+			"auth_mode":  route.AuthMode,
+		}})
+	if err != nil {
+		return err
+	}
+	if updated.MatchedCount == 0 {
+		return errors.New("route does not exist")
+	}
+	return nil
+}
+
+func (repo *Repository) deleteProjectRoute(ctx context.Context, routeID, projectID, userID bson.ObjectID) error {
+	projectCollection := repo.getProjectCollection()
+	routeCollection := repo.getRouteCollection()
+	filter := bson.M{
+		"_id":      projectID,
+		"owner_id": userID,
+	}
+	project := projectCollection.FindOne(ctx, filter)
+	if project.Err() != nil {
+		return project.Err()
+	}
+	_, err := routeCollection.DeleteOne(ctx, bson.M{"_id": routeID})
+	if err != nil {
+		return err
+	}
+	return nil
+
 }

@@ -171,7 +171,7 @@ func (s *Service) getProjectRoutes(ctx context.Context, projectID, ownerID bson.
 	return res, nil
 }
 
-func (s *Service) addProjectRoute(ctx context.Context, projectID, userID bson.ObjectID, route AddRouteRequest) (bson.ObjectID, error) {
+func (s *Service) addProjectRoute(ctx context.Context, projectID, userID bson.ObjectID, route AddUpdateRouteRequest) (bson.ObjectID, error) {
 	routeID, err := s.repo.addProjectRoute(ctx, projectID, userID, route)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
@@ -180,4 +180,26 @@ func (s *Service) addProjectRoute(ctx context.Context, projectID, userID bson.Ob
 		return bson.ObjectID{}, app_error.InternalServer(err)
 	}
 	return routeID, nil
+}
+
+func (s *Service) updateProjectRoute(ctx context.Context, routeID, projectID, userID bson.ObjectID, route AddUpdateRouteRequest) error {
+	err := s.repo.updateProjectRoute(ctx, routeID, projectID, userID, route)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return app_error.BadRequest("project not found or user does not have access", err)
+		}
+		return app_error.InternalServer(err)
+	}
+	return nil
+}
+
+func (s *Service) deleteProjectRoute(ctx context.Context, routeID, projectID, userID bson.ObjectID) error {
+	err := s.repo.deleteProjectRoute(ctx, routeID, projectID, userID)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return app_error.BadRequest("project not found or user does not have access", err)
+		}
+		return app_error.InternalServer(err)
+	}
+	return nil
 }

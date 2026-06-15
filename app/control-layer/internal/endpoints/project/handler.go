@@ -46,7 +46,7 @@ func (h *Handler) initRoutes() chi.Router {
 				r.Get("/", h.getProjectRoutes) // done
 				r.Post("/add", h.addRoute)
 				r.Route("/{routeID}", func(r chi.Router) {
-					r.Post("/update", h.updateRoute)
+					r.Patch("/update", h.updateRoute)
 					r.Delete("/delete", h.DeleteRoute)
 				})
 			})
@@ -204,7 +204,7 @@ func (h *Handler) getProjectRoutes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) addRoute(w http.ResponseWriter, r *http.Request) {
-	var addRouteRequest AddRouteRequest
+	var addRouteRequest AddUpdateRouteRequest
 	err := lib.ConvertJSONToStruct(r, &addRouteRequest)
 	if err != nil {
 		app_error.HandleError(w, app_error.BadRequest("could not parse json", err))
@@ -224,9 +224,45 @@ func (h *Handler) addRoute(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) updateRoute(w http.ResponseWriter, r *http.Request) {
-
+	var req AddUpdateRouteRequest
+	err := lib.ConvertJSONToStruct(r, &req)
+	if err != nil {
+		app_error.HandleError(w, app_error.BadRequest("could not parse json", err))
+		return
+	}
+	projectID, userID, err := GetProjectAndUserID(r)
+	if err != nil {
+		app_error.HandleError(w, app_error.Unauthorized("", err))
+		return
+	}
+	routeID, err := GetIdFromEndpoint(r, "routeID")
+	if err != nil {
+		app_error.HandleError(w, app_error.BadRequest("no routeID", err))
+		return
+	}
+	err = h.service.updateProjectRoute(r.Context(), routeID, projectID, userID, req)
+	if err != nil {
+		app_error.HandleError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) DeleteRoute(w http.ResponseWriter, r *http.Request) {
-
+	projectID, userID, err := GetProjectAndUserID(r)
+	if err != nil {
+		app_error.HandleError(w, app_error.Unauthorized("", err))
+		return
+	}
+	routeID, err := GetIdFromEndpoint(r, "routeID")
+	if err != nil {
+		app_error.HandleError(w, app_error.BadRequest("no routeID", err))
+		return
+	}
+	err = h.service.deleteProjectRoute(r.Context(), routeID, projectID, userID)
+	if err != nil {
+		app_error.HandleError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
