@@ -42,3 +42,27 @@ type ListProjectResponse struct {
 type UpdateLoadBalancerConfigRequest struct {
 	Config models.LoadBalancer `json:"config"`
 }
+
+type GetProjectRoutesResponse struct {
+	Routes []routeResponseModel `json:"routes"`
+}
+
+type AddRouteRequest struct {
+	Path      string          `json:"path"`
+	TargetURL string          `json:"target_url"`
+	Method    string          `json:"method"`
+	AuthMode  models.AuthMode `json:"auth_mode"`
+}
+
+type AddRouteResponse struct {
+	ID bson.ObjectID `json:"_id"`
+}
+
+// hleper structs:
+type routeResponseModel struct {
+	ID        bson.ObjectID   `json:"_id,omitempty"`
+	Path      string          `json:"path"`
+	Method    string          `json:"method"`
+	TargetURL string          `json:"target_url"`
+	AuthMode  models.AuthMode `json:"auth_mode"`
+}

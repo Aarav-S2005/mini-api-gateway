@@ -3,7 +3,7 @@ package project
 import (
 	"net/http"
 
-	redisconfig "github.com/Aarav-S2005/mini-api-gateway/app/control-layer/config"
+	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/config"
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/app_error"
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/lib"
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/middleware"
@@ -14,10 +14,10 @@ import (
 type Handler struct {
 	service *Service
 	reg     *registry.PluginRegistry
-	pub     *redisconfig.Publisher
+	pub     *config.Publisher
 }
 
-func NewHandler(repo *Repository, pluginRegistry registry.PluginRegistry, pub *redisconfig.Publisher) chi.Router {
+func NewHandler(repo *Repository, pluginRegistry registry.PluginRegistry, pub *config.Publisher) chi.Router {
 	h := &Handler{service: NewService(repo), reg: &pluginRegistry, pub: pub}
 	return h.initRoutes()
 }
@@ -40,6 +40,16 @@ func (h *Handler) initRoutes() chi.Router {
 			r.Patch("/loadbalancer", h.updateLoadBalancerConfig)  // done
 			r.Delete("/middleware/{name}", h.deleteMiddleware)    // done
 			r.Delete("/loadbalancer", h.deleteLoadBalancerConfig) // done
+
+			// Route Handlers
+			r.Route("/routes", func(r chi.Router) {
+				r.Get("/", h.getProjectRoutes) // done
+				r.Post("/add", h.addRoute)
+				r.Route("/{routeID}", func(r chi.Router) {
+					r.Post("/update", h.updateRoute)
+					r.Delete("/delete", h.DeleteRoute)
+				})
+			})
 		})
 	})
 	return r
@@ -175,5 +185,48 @@ func (h *Handler) deleteLoadBalancerConfig(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ROUTE HANDLER FUNCTIONS
+
+func (h *Handler) getProjectRoutes(w http.ResponseWriter, r *http.Request) {
+	projectID, userID, err := GetProjectAndUserID(r)
+	if err != nil {
+		app_error.HandleError(w, app_error.Unauthorized("", err))
+		return
+	}
+	routes, err := h.service.getProjectRoutes(r.Context(), projectID, userID)
+	if err != nil {
+		app_error.HandleError(w, err)
+		return
+	}
+	lib.ConvertStructToJSON(w, http.StatusOK, routes)
+}
+
+func (h *Handler) addRoute(w http.ResponseWriter, r *http.Request) {
+	var addRouteRequest AddRouteRequest
+	err := lib.ConvertJSONToStruct(r, &addRouteRequest)
+	if err != nil {
+		app_error.HandleError(w, app_error.BadRequest("could not parse json", err))
+		return
+	}
+	projectID, userID, err := GetProjectAndUserID(r)
+	if err != nil {
+		app_error.HandleError(w, app_error.Unauthorized("", err))
+		return
+	}
+	id, err := h.service.addProjectRoute(r.Context(), projectID, userID, addRouteRequest)
+	if err != nil {
+		app_error.HandleError(w, err)
+		return
+	}
+	lib.ConvertStructToJSON(w, http.StatusOK, AddRouteResponse{ID: id})
+}
+
+func (h *Handler) updateRoute(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (h *Handler) DeleteRoute(w http.ResponseWriter, r *http.Request) {
 
 }

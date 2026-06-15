@@ -20,12 +20,16 @@ func NewRepository(db *mongo.Database) *Repository {
 	}
 }
 
-func (repo *Repository) getCollection() *mongo.Collection {
+func (repo *Repository) getProjectCollection() *mongo.Collection {
 	return repo.db.Collection("projects")
 }
 
+func (repo *Repository) getRouteCollection() *mongo.Collection {
+	return repo.db.Collection("routes")
+}
+
 func (repo *Repository) createNewProject(ctx context.Context, req CreatProjectRequest, ownerID bson.ObjectID, gatewayApiKey string) (bson.ObjectID, error) {
-	projects := repo.getCollection()
+	projects := repo.getProjectCollection()
 	project := models.Project{
 		Name:               req.Name,
 		OwnerId:            ownerID,
@@ -44,7 +48,7 @@ func (repo *Repository) createNewProject(ctx context.Context, req CreatProjectRe
 }
 
 func (repo *Repository) getProject(ctx context.Context, projectID, userID bson.ObjectID) (*models.Project, error) {
-	projects := repo.getCollection()
+	projects := repo.getProjectCollection()
 	filter := bson.M{
 		"_id": projectID,
 		"$or": bson.A{
@@ -65,7 +69,7 @@ func (repo *Repository) getProject(ctx context.Context, projectID, userID bson.O
 }
 
 func (repo *Repository) deleteProject(ctx context.Context, projectID, ownerID bson.ObjectID) error {
-	projects := repo.getCollection()
+	projects := repo.getProjectCollection()
 	filter := bson.M{
 		"_id":      projectID,
 		"owner_id": ownerID,
@@ -78,7 +82,7 @@ func (repo *Repository) deleteProject(ctx context.Context, projectID, ownerID bs
 }
 
 func (repo *Repository) getAllProjects(ctx context.Context, userID bson.ObjectID) ([]models.Project, error) {
-	projectCollection := repo.getCollection()
+	projectCollection := repo.getProjectCollection()
 	filter := bson.M{
 		"$or": bson.A{
 			bson.M{
@@ -103,7 +107,7 @@ func (repo *Repository) getAllProjects(ctx context.Context, userID bson.ObjectID
 }
 
 func (repo *Repository) updateAccessList(ctx context.Context, projectID, ownerID bson.ObjectID, req UpdateAccessListRequest) error {
-	projectCollection := repo.getCollection()
+	projectCollection := repo.getProjectCollection()
 	filter := bson.M{
 		"_id":      projectID,
 		"owner_id": ownerID,
@@ -121,7 +125,7 @@ func (repo *Repository) updateAccessList(ctx context.Context, projectID, ownerID
 }
 
 func (repo *Repository) updateMiddlewares(ctx context.Context, projectID, userID bson.ObjectID, req UpdateMiddlewaresRequest) error {
-	projectCollection := repo.getCollection()
+	projectCollection := repo.getProjectCollection()
 	filter := bson.M{
 		"_id": projectID,
 		"$or": bson.A{
@@ -147,7 +151,7 @@ func (repo *Repository) updateMiddlewares(ctx context.Context, projectID, userID
 }
 
 func (repo *Repository) updateOneMiddleware(ctx context.Context, projectID, userID bson.ObjectID, middleware models.Middleware) error {
-	projectCollection := repo.getCollection()
+	projectCollection := repo.getProjectCollection()
 	filter := bson.M{
 		"_id": projectID,
 		"$or": bson.A{
@@ -200,7 +204,7 @@ func (repo *Repository) updateOneMiddleware(ctx context.Context, projectID, user
 }
 
 func (repo *Repository) deleteMiddleware(ctx context.Context, projectID, userID bson.ObjectID, name string) error {
-	projectCollection := repo.getCollection()
+	projectCollection := repo.getProjectCollection()
 	filter := bson.M{
 		"_id": projectID,
 		"$or": bson.A{
@@ -225,7 +229,7 @@ func (repo *Repository) deleteMiddleware(ctx context.Context, projectID, userID 
 }
 
 func (repo *Repository) deleteLoadBalancerConfig(ctx context.Context, projectID, ownerID bson.ObjectID) error {
-	projectCollection := repo.getCollection()
+	projectCollection := repo.getProjectCollection()
 	filter := bson.M{
 		"_id": projectID,
 		"$or": bson.A{
@@ -251,7 +255,7 @@ func (repo *Repository) deleteLoadBalancerConfig(ctx context.Context, projectID,
 }
 
 func (repo *Repository) updateLoadBalancerConfig(ctx context.Context, projectID, ownerID bson.ObjectID, lb models.LoadBalancer) error {
-	projectCollection := repo.getCollection()
+	projectCollection := repo.getProjectCollection()
 	filter := bson.M{
 		"_id": projectID,
 		"$or": bson.A{
@@ -274,4 +278,70 @@ func (repo *Repository) updateLoadBalancerConfig(ctx context.Context, projectID,
 		return err
 	}
 	return nil
+}
+
+func (repo *Repository) getAllProjectRoutes(ctx context.Context, projectID, userID bson.ObjectID) ([]models.Route, error) {
+	projectCollection := repo.getProjectCollection()
+	routeCollection := repo.getRouteCollection()
+	filter := bson.M{
+		"_id": projectID,
+		"$or": bson.A{
+			bson.M{
+				"owner_id": userID,
+			},
+			bson.M{
+				"access_list.user_id": userID,
+			},
+		},
+	}
+	project := projectCollection.FindOne(ctx, filter)
+	if project.Err() != nil {
+		return nil, project.Err()
+	}
+	var routes []models.Route
+	cursor, err := routeCollection.Find(ctx, bson.M{"project_id": projectID})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+	err = cursor.All(ctx, &routes)
+	if err != nil {
+		return nil, err
+	}
+	return routes, nil
+}
+
+func (repo *Repository) addProjectRoute(ctx context.Context, projectID, userID bson.ObjectID, route AddRouteRequest) (bson.ObjectID, error) {
+	projectCollection := repo.getProjectCollection()
+	routeCollection := repo.getRouteCollection()
+	filter := bson.M{
+		"_id": projectID,
+		"$or": bson.A{
+			bson.M{
+				"owner_id": userID,
+			},
+			bson.M{
+				"access_list.user_id":    userID,
+				"access_list.permission": models.PermissionEditing,
+			},
+		},
+	}
+	project := projectCollection.FindOne(ctx, filter)
+	if project.Err() != nil {
+		return bson.ObjectID{}, project.Err()
+	}
+	var r models.Route = models.Route{
+		ProjectID: projectID,
+		Path:      route.Path,
+		TargetURL: route.TargetURL,
+		Method:    route.Method,
+		AuthMode:  route.AuthMode,
+		CreatedAt: time.Now(),
+	}
+	inserted, err := routeCollection.InsertOne(ctx, r)
+	if err != nil {
+		return bson.ObjectID{}, err
+	}
+	id := inserted.InsertedID.(bson.ObjectID)
+	return id, nil
 }

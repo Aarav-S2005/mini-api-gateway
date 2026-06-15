@@ -7,6 +7,7 @@ import (
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/app_error"
 	"github.com/Aarav-S2005/mini-api-gateway/app/plugin-manager/registry"
 	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 type Service struct {
@@ -144,4 +145,39 @@ func (s *Service) updateLoadBalancerConfig(ctx context.Context, projectID, userI
 		return app_error.InternalServer(err)
 	}
 	return nil
+}
+
+// ROUTE SERVICE
+
+func (s *Service) getProjectRoutes(ctx context.Context, projectID, ownerID bson.ObjectID) (GetProjectRoutesResponse, error) {
+	routes, err := s.repo.getAllProjectRoutes(ctx, projectID, ownerID)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return GetProjectRoutesResponse{}, app_error.BadRequest("project not found or user does not have access", err)
+		}
+		return GetProjectRoutesResponse{}, app_error.InternalServer(err)
+	}
+	var res GetProjectRoutesResponse
+	res.Routes = make([]routeResponseModel, 0, len(routes))
+	for _, route := range routes {
+		res.Routes = append(res.Routes, routeResponseModel{
+			ID:        route.ID,
+			TargetURL: route.TargetURL,
+			Path:      route.Path,
+			Method:    route.Method,
+			AuthMode:  route.AuthMode,
+		})
+	}
+	return res, nil
+}
+
+func (s *Service) addProjectRoute(ctx context.Context, projectID, userID bson.ObjectID, route AddRouteRequest) (bson.ObjectID, error) {
+	routeID, err := s.repo.addProjectRoute(ctx, projectID, userID, route)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return bson.ObjectID{}, app_error.BadRequest("project not found or user does not have access", err)
+		}
+		return bson.ObjectID{}, app_error.InternalServer(err)
+	}
+	return routeID, nil
 }

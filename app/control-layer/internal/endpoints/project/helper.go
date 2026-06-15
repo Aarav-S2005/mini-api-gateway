@@ -30,8 +30,7 @@ func GetProjectAndUserID(r *http.Request) (bson.ObjectID, bson.ObjectID, error) 
 	if err != nil {
 		return bson.ObjectID{0}, bson.ObjectID{}, err
 	}
-	projectIDStr := chi.URLParam(r, "id")
-	projectID, err := bson.ObjectIDFromHex(projectIDStr)
+	projectID, err := GetIdFromEndpoint(r, "id")
 	if err != nil {
 		return bson.ObjectID{}, bson.ObjectID{}, err
 	}
@@ -69,4 +68,12 @@ func ValidateBackendURL(backend string) error {
 	}
 
 	return nil
+}
+
+func GetIdFromEndpoint(r *http.Request, key string) (bson.ObjectID, error) {
+	id, err := bson.ObjectIDFromHex(chi.URLParam(r, key))
+	if err != nil {
+		return bson.ObjectID{}, err
+	}
+	return id, nil
 }
