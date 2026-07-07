@@ -33,23 +33,23 @@ func (h *Handler) initRoutes() chi.Router {
 		r.Post("/", h.createProject) // done
 		r.Get("/", h.getAllProjects) // done
 		r.Route("/{id}", func(r chi.Router) {
-			r.Get("/", h.getProject)                              // done
-			r.Delete("/", h.deleteProject)                        // done
-			r.Patch("/middleware", h.updateMiddlewares)           // done
-			r.Patch("/accesslist", h.updateAccessList)            // done
-			r.Patch("/loadbalancer", h.updateLoadBalancerConfig)  // done
-			r.Delete("/middleware/{name}", h.deleteMiddleware)    // done
-			r.Delete("/loadbalancer", h.deleteLoadBalancerConfig) // done
+			r.Get("/", h.getProject)                    // done
+			r.Delete("/", h.deleteProject)              // done
+			r.Patch("/middleware", h.updateMiddlewares) // done
+			r.Patch("/accesslist", h.updateAccessList)  // done
+			//r.Patch("/loadbalancer", h.updateLoadBalancerConfig)  // done
+			r.Delete("/middleware/{name}", h.deleteMiddleware) // done
+			//r.Delete("/loadbalancer", h.deleteLoadBalancerConfig) // done
 
 			// Route Handlers
-			r.Route("/routes", func(r chi.Router) {
-				r.Get("/", h.getProjectRoutes) // done
-				r.Post("/add", h.addRoute)
-				r.Route("/{routeID}", func(r chi.Router) {
-					r.Patch("/update", h.updateRoute)
-					r.Delete("/delete", h.DeleteRoute)
-				})
-			})
+			//r.Route("/routes", func(r chi.Router) {
+			//	r.Get("/", h.getProjectRoutes) // done
+			//	r.Post("/", h.addRoute)        // done
+			//	r.Route("/{routeID}", func(r chi.Router) {
+			//		r.Patch("/", h.updateRoute)  // done
+			//		r.Delete("/", h.DeleteRoute) // done
+			//	})
+			//})
 		})
 	})
 	return r
@@ -148,16 +148,6 @@ func (h *Handler) updateAccessList(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) updateLoadBalancerConfig(w http.ResponseWriter, r *http.Request) {
-	var req UpdateLoadBalancerConfigRequest
-	err := lib.ConvertJSONToStruct(r, &req)
-	if err != nil {
-		app_error.HandleError(w, app_error.BadRequest("could not parse json", err))
-		return
-	}
-
-}
-
 func (h *Handler) deleteMiddleware(w http.ResponseWriter, r *http.Request) {
 	mwname := chi.URLParam(r, "name")
 	projectID, userID, err := GetProjectAndUserID(r)
@@ -173,96 +163,4 @@ func (h *Handler) deleteMiddleware(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) deleteLoadBalancerConfig(w http.ResponseWriter, r *http.Request) {
-	projectID, userID, err := GetProjectAndUserID(r)
-	if err != nil {
-		app_error.HandleError(w, app_error.Unauthorized("", err))
-		return
-	}
-	err = h.service.deleteLoadBalancerConfig(r.Context(), projectID, userID)
-	if err != nil {
-		app_error.HandleError(w, err)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
 // ROUTE HANDLER FUNCTIONS
-
-func (h *Handler) getProjectRoutes(w http.ResponseWriter, r *http.Request) {
-	projectID, userID, err := GetProjectAndUserID(r)
-	if err != nil {
-		app_error.HandleError(w, app_error.Unauthorized("", err))
-		return
-	}
-	routes, err := h.service.getProjectRoutes(r.Context(), projectID, userID)
-	if err != nil {
-		app_error.HandleError(w, err)
-		return
-	}
-	lib.ConvertStructToJSON(w, http.StatusOK, routes)
-}
-
-func (h *Handler) addRoute(w http.ResponseWriter, r *http.Request) {
-	var addRouteRequest AddUpdateRouteRequest
-	err := lib.ConvertJSONToStruct(r, &addRouteRequest)
-	if err != nil {
-		app_error.HandleError(w, app_error.BadRequest("could not parse json", err))
-		return
-	}
-	projectID, userID, err := GetProjectAndUserID(r)
-	if err != nil {
-		app_error.HandleError(w, app_error.Unauthorized("", err))
-		return
-	}
-	id, err := h.service.addProjectRoute(r.Context(), projectID, userID, addRouteRequest)
-	if err != nil {
-		app_error.HandleError(w, err)
-		return
-	}
-	lib.ConvertStructToJSON(w, http.StatusOK, AddRouteResponse{ID: id})
-}
-
-func (h *Handler) updateRoute(w http.ResponseWriter, r *http.Request) {
-	var req AddUpdateRouteRequest
-	err := lib.ConvertJSONToStruct(r, &req)
-	if err != nil {
-		app_error.HandleError(w, app_error.BadRequest("could not parse json", err))
-		return
-	}
-	projectID, userID, err := GetProjectAndUserID(r)
-	if err != nil {
-		app_error.HandleError(w, app_error.Unauthorized("", err))
-		return
-	}
-	routeID, err := GetIdFromEndpoint(r, "routeID")
-	if err != nil {
-		app_error.HandleError(w, app_error.BadRequest("no routeID", err))
-		return
-	}
-	err = h.service.updateProjectRoute(r.Context(), routeID, projectID, userID, req)
-	if err != nil {
-		app_error.HandleError(w, err)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func (h *Handler) DeleteRoute(w http.ResponseWriter, r *http.Request) {
-	projectID, userID, err := GetProjectAndUserID(r)
-	if err != nil {
-		app_error.HandleError(w, app_error.Unauthorized("", err))
-		return
-	}
-	routeID, err := GetIdFromEndpoint(r, "routeID")
-	if err != nil {
-		app_error.HandleError(w, app_error.BadRequest("no routeID", err))
-		return
-	}
-	err = h.service.deleteProjectRoute(r.Context(), routeID, projectID, userID)
-	if err != nil {
-		app_error.HandleError(w, err)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
