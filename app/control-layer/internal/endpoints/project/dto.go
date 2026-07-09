@@ -14,7 +14,7 @@ type CreatProjectRequest struct {
 }
 
 type CreatProjectResponse struct {
-	Id       bson.ObjectID `json:"_id"`
+	Id       bson.ObjectID `json:"project_id"`
 	ApiGwKey string        `json:"api_gw_key"`
 }
 
@@ -27,7 +27,7 @@ type UpdateAccessListRequest struct {
 }
 
 type GetProjectResponse struct {
-	ID          bson.ObjectID       `json:"_id,omitempty"`
+	ID          bson.ObjectID       `json:"project_id"`
 	Name        string              `json:"name"`
 	CreatedAt   time.Time           `json:"created_at"`
 	Middlewares []models.Middleware `json:"middlewares"`
@@ -35,6 +35,6 @@ type GetProjectResponse struct {
 }
 
 type ListProjectResponse struct {
-	ID   bson.ObjectID `json:"_id"`
+	ID   bson.ObjectID `json:"project_id"`
 	Name string        `json:"name"`
 }

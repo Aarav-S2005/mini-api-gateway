@@ -15,13 +15,14 @@ const (
 	WeightedRoundRobin      LoadBalancingStrategy = "WEIGHT_ROUND_ROBIN"
 )
 
-type Service struct {
+type Upstream struct {
 	ID                    bson.ObjectID         `bson:"_id,omitempty"`
 	ProjectID             bson.ObjectID         `bson:"project_id"`
 	Name                  string                `bson:"name"`
 	LoadBalancingStrategy LoadBalancingStrategy `bson:"strategy"`
 	Backends              []Backend             `bson:"backends"`
 	CreatedAt             time.Time             `bson:"created_at"`
+	UpdatedAt             time.Time             `bson:"updated_at"`
 }
 
 type Backend struct {

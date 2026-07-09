@@ -4,14 +4,9 @@ import (
 	"crypto/rand"
 	"encoding/base32"
 	"errors"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
-
-	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/lib"
-	"github.com/go-chi/chi/v5"
-	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func GenerateGatewayAPIKey() (string, error) {
@@ -23,18 +18,6 @@ func GenerateGatewayAPIKey() (string, error) {
 		base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b),
 	)
 	return "gw_" + key, nil
-}
-
-func GetProjectAndUserID(r *http.Request) (bson.ObjectID, bson.ObjectID, error) {
-	userID, err := lib.GetUserID(r.Context())
-	if err != nil {
-		return bson.ObjectID{0}, bson.ObjectID{}, err
-	}
-	projectID, err := GetIdFromEndpoint(r, "id")
-	if err != nil {
-		return bson.ObjectID{}, bson.ObjectID{}, err
-	}
-	return projectID, userID, nil
 }
 
 func ValidateBackendURL(backend string) error {
@@ -68,12 +51,4 @@ func ValidateBackendURL(backend string) error {
 	}
 
 	return nil
-}
-
-func GetIdFromEndpoint(r *http.Request, key string) (bson.ObjectID, error) {
-	id, err := bson.ObjectIDFromHex(chi.URLParam(r, key))
-	if err != nil {
-		return bson.ObjectID{}, err
-	}
-	return id, nil
 }

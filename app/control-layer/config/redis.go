@@ -2,33 +2,35 @@ package config
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type Publisher struct {
-	rdb *redis.Client
+	client *redis.Client
 }
 
-func NewPublisher(rdb *redis.Client) *Publisher {
+func NewPublisher(client *redis.Client) *Publisher {
 	return &Publisher{
-		rdb: rdb,
+		client: client,
 	}
 }
 
-func (p *Publisher) Publish(channel string, payload string) error {
-	return p.rdb.Publish(context.Background(), channel, payload).Err()
+func (p *Publisher) Publish(ctx context.Context, channel string, payload any) error {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	return p.client.Publish(ctx, channel, data).Err()
 }
 
-func NewRedis(addr string) (*redis.Client, error) {
-	rdb := redis.NewClient(&redis.Options{
-		Addr: addr,
-	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := rdb.Ping(ctx).Err(); err != nil {
-		return nil, err
-	}
-	return rdb, nil
+type UpdateEventNotification struct {
+	Resource                 string
+	ResourceID               bson.ObjectID
+	ResourceAttributeUpdated []string
+	ConfigUpdateTime         time.Time
 }

@@ -3,7 +3,6 @@ package project
 import (
 	"net/http"
 
-	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/config"
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/app_error"
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/lib"
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/middleware"
@@ -14,11 +13,10 @@ import (
 type Handler struct {
 	service *Service
 	reg     *registry.PluginRegistry
-	pub     *config.Publisher
 }
 
-func NewHandler(repo *Repository, pluginRegistry registry.PluginRegistry, pub *config.Publisher) chi.Router {
-	h := &Handler{service: NewService(repo), reg: &pluginRegistry, pub: pub}
+func NewHandler(repo *Repository, pluginRegistry registry.PluginRegistry) chi.Router {
+	h := &Handler{service: NewService(repo), reg: &pluginRegistry}
 	return h.initRoutes()
 }
 
@@ -32,24 +30,12 @@ func (h *Handler) initRoutes() chi.Router {
 	r.Group(func(r chi.Router) {
 		r.Post("/", h.createProject) // done
 		r.Get("/", h.getAllProjects) // done
-		r.Route("/{id}", func(r chi.Router) {
-			r.Get("/", h.getProject)                    // done
-			r.Delete("/", h.deleteProject)              // done
-			r.Patch("/middleware", h.updateMiddlewares) // done
-			r.Patch("/accesslist", h.updateAccessList)  // done
-			//r.Patch("/loadbalancer", h.updateLoadBalancerConfig)  // done
+		r.Route("/{projectID}", func(r chi.Router) {
+			r.Get("/", h.getProject)                           // done
+			r.Delete("/", h.deleteProject)                     // done
+			r.Patch("/middleware", h.updateMiddlewares)        // done
+			r.Patch("/accesslist", h.updateAccessList)         // done
 			r.Delete("/middleware/{name}", h.deleteMiddleware) // done
-			//r.Delete("/loadbalancer", h.deleteLoadBalancerConfig) // done
-
-			// Route Handlers
-			//r.Route("/routes", func(r chi.Router) {
-			//	r.Get("/", h.getProjectRoutes) // done
-			//	r.Post("/", h.addRoute)        // done
-			//	r.Route("/{routeID}", func(r chi.Router) {
-			//		r.Patch("/", h.updateRoute)  // done
-			//		r.Delete("/", h.DeleteRoute) // done
-			//	})
-			//})
 		})
 	})
 	return r
@@ -72,7 +58,7 @@ func (h *Handler) createProject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getProject(w http.ResponseWriter, r *http.Request) {
-	projectID, userID, err := GetProjectAndUserID(r)
+	projectID, userID, err := lib.GetProjectAndUserID(r)
 	if err != nil {
 		app_error.HandleError(w, app_error.BadRequest("could not get userID or projectID", err))
 		return
@@ -86,7 +72,7 @@ func (h *Handler) getProject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) deleteProject(w http.ResponseWriter, r *http.Request) {
-	projectID, userID, err := GetProjectAndUserID(r)
+	projectID, userID, err := lib.GetProjectAndUserID(r)
 	if err != nil {
 		app_error.HandleError(w, app_error.BadRequest("could not get userID or projectID", err))
 		return
@@ -114,7 +100,7 @@ func (h *Handler) getAllProjects(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) updateMiddlewares(w http.ResponseWriter, r *http.Request) {
-	projectID, userID, err := GetProjectAndUserID(r)
+	projectID, userID, err := lib.GetProjectAndUserID(r)
 	if err != nil {
 		app_error.HandleError(w, app_error.Unauthorized("", err))
 		return
@@ -129,7 +115,7 @@ func (h *Handler) updateMiddlewares(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) updateAccessList(w http.ResponseWriter, r *http.Request) {
-	projectID, userID, err := GetProjectAndUserID(r)
+	projectID, userID, err := lib.GetProjectAndUserID(r)
 	if err != nil {
 		app_error.HandleError(w, app_error.Unauthorized("no userID", err))
 		return
@@ -150,7 +136,7 @@ func (h *Handler) updateAccessList(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) deleteMiddleware(w http.ResponseWriter, r *http.Request) {
 	mwname := chi.URLParam(r, "name")
-	projectID, userID, err := GetProjectAndUserID(r)
+	projectID, userID, err := lib.GetProjectAndUserID(r)
 	if err != nil {
 		app_error.HandleError(w, app_error.Unauthorized("", err))
 		return

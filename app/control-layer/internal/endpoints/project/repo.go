@@ -21,11 +21,7 @@ func NewRepository(db *mongo.Database) *Repository {
 }
 
 func (repo *Repository) getProjectCollection() *mongo.Collection {
-	return repo.db.Collection("projects")
-}
-
-func (repo *Repository) getRouteCollection() *mongo.Collection {
-	return repo.db.Collection("routes")
+	return repo.db.Collection("project")
 }
 
 func (repo *Repository) createNewProject(ctx context.Context, req CreatProjectRequest, ownerID bson.ObjectID, gatewayApiKey string) (bson.ObjectID, error) {
