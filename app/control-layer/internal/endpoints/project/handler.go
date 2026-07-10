@@ -15,8 +15,8 @@ type Handler struct {
 	reg     *registry.PluginRegistry
 }
 
-func NewHandler(repo *Repository, pluginRegistry registry.PluginRegistry) chi.Router {
-	h := &Handler{service: NewService(repo), reg: &pluginRegistry}
+func NewHandler(repo *Repository, pluginRegistry *registry.PluginRegistry) chi.Router {
+	h := &Handler{service: NewService(repo), reg: pluginRegistry}
 	return h.initRoutes()
 }
 

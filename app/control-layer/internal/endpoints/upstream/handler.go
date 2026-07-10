@@ -14,8 +14,9 @@ type Handler struct {
 	pub     *config.Publisher
 }
 
-func NewHandler(repo *Repository, pub *config.Publisher) *Handler {
-	return &Handler{service: NewService(repo), pub: pub}
+func NewHandler(repo *Repository, pub *config.Publisher) chi.Router {
+	h := &Handler{service: NewService(repo), pub: pub}
+	return h.initRoutes()
 }
 
 func (h *Handler) initRoutes() chi.Router {

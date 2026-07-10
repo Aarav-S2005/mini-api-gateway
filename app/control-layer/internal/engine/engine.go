@@ -2,14 +2,13 @@ package engine
 
 import (
 	"log"
+	"net/http"
 
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/config"
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/db"
-	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/endpoints/auth"
-	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/endpoints/project"
-	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/middleware"
+	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/endpoints"
 	"github.com/Aarav-S2005/mini-api-gateway/app/plugin-manager/registry"
-	"github.com/go-chi/chi/v5"
+	"github.com/redis/go-redis/v9"
 )
 
 func Run() {
@@ -28,25 +27,19 @@ func Run() {
 		return
 	}
 
-	// REDIS PUB
-	rdb, err := config.NewRedis(cfg.RedisUri)
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		DB:       0,
+		Password: "",
+	})
+	pub := config.NewPublisher(rdb)
+
+	r := endpoints.SetUpEndpoints(pub, mongodb, registry.NewRegistry())
+
+	err = http.ListenAndServe(":"+cfg.Port, r)
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	pub := config.NewPublisher(rdb)
 
-	// JWT
-	middleware.InitAuth(cfg.JwtSecret)
-
-	// CHI ROUTER
-	r := chi.NewRouter()
-
-	// AUTH HANDLER
-	authHandler := auth.NewHandler(auth.NewRepository(mongodb))
-	r.Mount("/auth", authHandler)
-
-	// PROJECT HANDLER
-	projectHandler := project.NewHandler(project.NewRepository(mongodb), *registry.NewRegistry(), pub)
-	r.Mount("/project", projectHandler)
 }
