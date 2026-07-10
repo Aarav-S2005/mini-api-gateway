@@ -26,6 +26,6 @@ type Upstream struct {
 }
 
 type Backend struct {
-	URL    string `bson:"url"`
-	Weight int    `bson:"weight,omitempty"`
+	URL    string `bson:"url" json:"url"`
+	Weight *int   `bson:"weight,omitempty" json:"weight,omitempty"`
 }

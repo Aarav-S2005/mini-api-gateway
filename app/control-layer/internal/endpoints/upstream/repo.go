@@ -1,13 +1,16 @@
-package route
+package upstream
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/models"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
+
+var ErrUpstreamAlreadyExists = errors.New("upstream already exists")
 
 type Repository struct {
 	db *mongo.Database
@@ -23,7 +26,7 @@ func (repo *Repository) getUpstreamCollection() *mongo.Collection {
 	return repo.db.Collection("upstream")
 }
 
-func (repo *Repository) authorizeUserIDFilterByEditingPermission(giveOnlyEditingPermission bool, userID, projectId bson.ObjectID) bson.M {
+func (repo *Repository) projectAccessFilter(giveOnlyEditingPermission bool, userID, projectId bson.ObjectID) bson.M {
 	permissionFilter := bson.M{
 		"access_list": bson.M{
 			"$elemMatch": bson.M{
@@ -53,7 +56,7 @@ func (repo *Repository) authorizeUserIDFilterByEditingPermission(giveOnlyEditing
 }
 
 func (repo *Repository) getUpstreamById(ctx context.Context, userID, projectID, serviceID bson.ObjectID) (*models.Upstream, error) {
-	projectFilter := repo.authorizeUserIDFilterByEditingPermission(false, userID, projectID)
+	projectFilter := repo.projectAccessFilter(false, userID, projectID)
 	var project models.Project
 	err := repo.db.Collection("project").FindOne(ctx, projectFilter).Decode(&project)
 	if err != nil {
@@ -72,7 +75,7 @@ func (repo *Repository) getUpstreamById(ctx context.Context, userID, projectID, 
 }
 
 func (repo *Repository) getAllUpstreamsByProjectID(ctx context.Context, userID, projectID bson.ObjectID) ([]models.Upstream, error) {
-	projectFilter := repo.authorizeUserIDFilterByEditingPermission(false, userID, projectID)
+	projectFilter := repo.projectAccessFilter(false, userID, projectID)
 	var project models.Project
 	err := repo.db.Collection("project").FindOne(ctx, projectFilter).Decode(&project)
 	if err != nil {
@@ -91,19 +94,30 @@ func (repo *Repository) getAllUpstreamsByProjectID(ctx context.Context, userID, 
 }
 
 func (repo *Repository) createUpstream(ctx context.Context, reqBody CreateOrUpdateUpstreamRequestDTO, userID, projectID bson.ObjectID) (bson.ObjectID, error) {
-	projectFilter := repo.authorizeUserIDFilterByEditingPermission(true, userID, projectID)
-	var project models.Project
-	err := repo.db.Collection("project").FindOne(ctx, projectFilter).Decode(&project)
+	projectFilter := repo.projectAccessFilter(true, userID, projectID)
+	err := repo.db.Collection("project").FindOne(ctx, projectFilter).Err()
 	if err != nil {
 		return bson.ObjectID{}, err
 	}
+	upstreamFilter := bson.M{
+		"project_id": projectID,
+		"name":       reqBody.Name,
+	}
+	err = repo.getUpstreamCollection().FindOne(ctx, upstreamFilter).Err()
+	if err == nil {
+		return bson.ObjectID{}, ErrUpstreamAlreadyExists
+	}
+	if !errors.Is(mongo.ErrNoDocuments, err) {
+		return bson.ObjectID{}, err
+	}
+	now := time.Now()
 	upstream := models.Upstream{
 		ProjectID:             projectID,
 		Name:                  reqBody.Name,
 		LoadBalancingStrategy: reqBody.LoadBalancingStrategy,
 		Backends:              reqBody.Backends,
-		CreatedAt:             time.Now(),
-		UpdatedAt:             time.Now(),
+		CreatedAt:             now,
+		UpdatedAt:             now,
 	}
 	inserted, err := repo.getUpstreamCollection().InsertOne(ctx, upstream)
 	if err != nil {
@@ -114,7 +128,7 @@ func (repo *Repository) createUpstream(ctx context.Context, reqBody CreateOrUpda
 }
 
 func (repo *Repository) updateUpstream(ctx context.Context, reqBody CreateOrUpdateUpstreamRequestDTO, userID, projectID, upstreamID bson.ObjectID) error {
-	projectFilter := repo.authorizeUserIDFilterByEditingPermission(true, userID, projectID)
+	projectFilter := repo.projectAccessFilter(true, userID, projectID)
 	err := repo.db.Collection("project").FindOne(ctx, projectFilter).Err()
 	if err != nil {
 		return err

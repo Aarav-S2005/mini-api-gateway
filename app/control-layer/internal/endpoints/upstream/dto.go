@@ -1,4 +1,4 @@
-package route
+package upstream
 
 import (
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/models"
@@ -12,16 +12,16 @@ type CreateOrUpdateUpstreamRequestDTO struct {
 }
 
 type GetUpstreamResponseDTO struct {
-	ID                    bson.ObjectID                `json:"_id"`
+	ID                    bson.ObjectID                `json:"upstream_id"`
 	Name                  string                       `json:"name"`
 	LoadBalancingStrategy models.LoadBalancingStrategy `json:"load_balancing_strategy"`
 	Backends              []models.Backend             `json:"backends"`
 }
 
 type GetAllUpstreamResponseDTO struct {
-	upstreams []GetUpstreamResponseDTO
+	Upstreams []GetUpstreamResponseDTO `json:"upstreams"`
 }
 
 type CreateUpstreamResponseDTO struct {
-	UpstreamID bson.ObjectID `json:"project_id"`
+	UpstreamID bson.ObjectID `json:"upstream_id"`
 }

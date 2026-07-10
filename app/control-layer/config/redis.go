@@ -29,8 +29,7 @@ func (p *Publisher) Publish(ctx context.Context, channel string, payload any) er
 }
 
 type UpdateEventNotification struct {
-	Resource                 string
-	ResourceID               bson.ObjectID
-	ResourceAttributeUpdated []string
-	ConfigUpdateTime         time.Time
+	Resource         string
+	ResourceID       bson.ObjectID
+	ConfigUpdateTime time.Time
 }

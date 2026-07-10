@@ -1,4 +1,4 @@
-package route
+package upstream
 
 import (
 	"net/http"
@@ -6,7 +6,6 @@ import (
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/config"
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/app_error"
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/lib"
-	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/middleware"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -21,11 +20,6 @@ func NewHandler(repo *Repository, pub *config.Publisher) *Handler {
 
 func (h *Handler) initRoutes() chi.Router {
 	r := chi.NewRouter()
-	r.Use(
-		middleware.CookieToBearer,
-		middleware.Authenticator(),
-		middleware.Verifier(),
-	)
 	r.Group(func(r chi.Router) {
 		r.Get("/", h.getAllUpstream)
 		r.Get("/{upstreamID}", h.getUpstream)
