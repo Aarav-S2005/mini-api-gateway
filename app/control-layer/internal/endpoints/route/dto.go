@@ -1,7 +1,7 @@
 package route
 
 import (
-	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/models"
+	"github.com/Aarav-S2005/mini-api-gateway/app/db/models"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 

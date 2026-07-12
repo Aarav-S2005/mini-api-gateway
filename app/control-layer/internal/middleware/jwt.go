@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-chi/jwtauth/v5"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 var tokenAuth *jwtauth.JWTAuth
@@ -22,7 +23,7 @@ func Authenticator() func(http.Handler) http.Handler {
 	return jwtauth.Authenticator(tokenAuth)
 }
 
-func SignJwt(userID string) (string, error) {
+func SignJwt(userID bson.ObjectID) (string, error) {
 	if tokenAuth == nil {
 		return "", errors.New("auth not initialized")
 	}
@@ -30,14 +31,12 @@ func SignJwt(userID string) (string, error) {
 	now := time.Now()
 
 	_, tokenString, err := tokenAuth.Encode(map[string]interface{}{
-		"userID": userID,
+		"userID": userID.Hex(),
 		"exp":    now.Add(24 * time.Hour).Unix(),
 		"iat":    now.Unix(),
 	})
-
 	if err != nil {
 		return "", err
 	}
-
 	return tokenString, nil
 }

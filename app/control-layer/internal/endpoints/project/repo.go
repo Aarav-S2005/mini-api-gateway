@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/models"
+	"github.com/Aarav-S2005/mini-api-gateway/app/db/models"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
@@ -13,6 +13,8 @@ import (
 type Repository struct {
 	db *mongo.Database
 }
+
+var ErrNoUserFound = errors.New("username not found")
 
 func NewRepository(db *mongo.Database) *Repository {
 	return &Repository{
@@ -26,12 +28,48 @@ func (repo *Repository) getProjectCollection() *mongo.Collection {
 
 func (repo *Repository) createNewProject(ctx context.Context, req CreatProjectRequest, ownerID bson.ObjectID, gatewayApiKey string) (bson.ObjectID, error) {
 	projects := repo.getProjectCollection()
+	accessUsernames := make([]string, len(req.AccessList))
+	for i, access := range req.AccessList {
+		accessUsernames[i] = access.Username
+	}
+	filter := bson.M{
+		"username": bson.M{
+			"$in": accessUsernames,
+		},
+	}
+	cursor, err := repo.db.Collection("users").Find(ctx, filter)
+	if err != nil {
+		return bson.ObjectID{}, err
+	}
+	defer cursor.Close(ctx)
+
+	var users []models.User
+	if err = cursor.All(ctx, &users); err != nil {
+		return bson.ObjectID{}, err
+	}
+	usernameToID := make(map[string]bson.ObjectID, len(users))
+	for _, user := range users {
+		usernameToID[user.Username] = user.ID
+	}
+	accessList := make([]models.Access, len(req.AccessList))
+	for i, access := range req.AccessList {
+		userID, ok := usernameToID[access.Username]
+		if !ok {
+			return bson.ObjectID{}, ErrNoUserFound
+		}
+
+		accessList[i] = models.Access{
+			UserID:     userID,
+			Permission: access.Permission,
+		}
+	}
+
 	project := models.Project{
 		Name:          req.Name,
 		OwnerId:       ownerID,
 		GatewayApiKey: gatewayApiKey,
 		CreatedAt:     time.Now().UTC(),
-		AccessList:    req.AccessList,
+		AccessList:    accessList,
 		Middlewares:   []models.Middleware{},
 	}
 	inserted, err := projects.InsertOne(ctx, project)
@@ -51,7 +89,11 @@ func (repo *Repository) getProject(ctx context.Context, projectID, userID bson.O
 				"owner_id": userID,
 			},
 			bson.M{
-				"access_list.user_id": userID,
+				"access_list": bson.M{
+					"$elemMatch": bson.M{
+						"user_id": userID,
+					},
+				},
 			},
 		},
 	}
@@ -84,7 +126,11 @@ func (repo *Repository) getAllProjects(ctx context.Context, userID bson.ObjectID
 				"owner_id": userID,
 			},
 			bson.M{
-				"access_list.user_id": userID,
+				"access_list": bson.M{
+					"$elemMatch": bson.M{
+						"user_id": userID,
+					},
+				},
 			},
 		},
 	}
@@ -107,12 +153,47 @@ func (repo *Repository) updateAccessList(ctx context.Context, projectID, ownerID
 		"_id":      projectID,
 		"owner_id": ownerID,
 	}
-	update := bson.M{
-		"$set": bson.M{
-			"access_list": req.AccessList,
+	accessUsernames := make([]string, len(req.AccessList))
+	for i, access := range req.AccessList {
+		accessUsernames[i] = access.Username
+	}
+	filterAL := bson.M{
+		"username": bson.M{
+			"$in": accessUsernames,
 		},
 	}
-	_, err := projectCollection.UpdateOne(ctx, filter, update)
+	cursor, err := repo.db.Collection("users").Find(ctx, filterAL)
+	if err != nil {
+		return err
+	}
+	defer cursor.Close(ctx)
+
+	var users []models.User
+	if err = cursor.All(ctx, &users); err != nil {
+		return err
+	}
+	usernameToID := make(map[string]bson.ObjectID, len(users))
+	for _, user := range users {
+		usernameToID[user.Username] = user.ID
+	}
+	accessList := make([]models.Access, len(req.AccessList))
+	for i, access := range req.AccessList {
+		userID, ok := usernameToID[access.Username]
+		if !ok {
+			return ErrNoUserFound
+		}
+
+		accessList[i] = models.Access{
+			UserID:     userID,
+			Permission: access.Permission,
+		}
+	}
+	update := bson.M{
+		"$set": bson.M{
+			"access_list": accessList,
+		},
+	}
+	_, err = projectCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
@@ -128,8 +209,12 @@ func (repo *Repository) updateMiddlewares(ctx context.Context, projectID, userID
 				"owner_id": userID,
 			},
 			bson.M{
-				"access_list.user_id":    userID,
-				"access_list.permission": models.PermissionEditing,
+				"access_list": bson.M{
+					"$elemMatch": bson.M{
+						"user_id":    userID,
+						"permission": models.PermissionEditing,
+					},
+				},
 			},
 		},
 	}
@@ -154,8 +239,12 @@ func (repo *Repository) updateOneMiddleware(ctx context.Context, projectID, user
 				"owner_id": userID,
 			},
 			bson.M{
-				"access_list.user_id":    userID,
-				"access_list.permission": models.PermissionEditing,
+				"access_list": bson.M{
+					"$elemMatch": bson.M{
+						"user_id":    userID,
+						"permission": models.PermissionEditing,
+					},
+				},
 			},
 		},
 		"middlewares.name": middleware.Name,
@@ -177,8 +266,12 @@ func (repo *Repository) updateOneMiddleware(ctx context.Context, projectID, user
 					"owner_id": userID,
 				},
 				bson.M{
-					"access_list.user_id":    userID,
-					"access_list.permission": models.PermissionEditing,
+					"access_list": bson.M{
+						"$elemMatch": bson.M{
+							"user_id":    userID,
+							"permission": models.PermissionEditing,
+						},
+					},
 				},
 			},
 		}
@@ -207,8 +300,12 @@ func (repo *Repository) deleteMiddleware(ctx context.Context, projectID, userID 
 				"owner_id": userID,
 			},
 			bson.M{
-				"access_list.user_id":    userID,
-				"access_list.permission": models.PermissionEditing,
+				"access_list": bson.M{
+					"$elemMatch": bson.M{
+						"user_id":    userID,
+						"permission": models.PermissionEditing,
+					},
+				},
 			},
 		},
 	}

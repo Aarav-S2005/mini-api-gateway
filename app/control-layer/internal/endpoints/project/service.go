@@ -50,7 +50,6 @@ func (s *Service) GetProject(ctx context.Context, projectID, userID bson.ObjectI
 	return GetProjectResponse{
 		ID:          project.ID,
 		Name:        project.Name,
-		CreatedAt:   project.CreatedAt,
 		Middlewares: project.Middlewares,
 		Permission:  permission,
 	}, nil
@@ -64,14 +63,14 @@ func (s *Service) DeleteProject(ctx context.Context, projectID, userID bson.Obje
 	return nil
 }
 
-func (s *Service) GetAllProjects(ctx context.Context, userID bson.ObjectID) ([]GetProjectResponse, error) {
+func (s *Service) GetAllProjects(ctx context.Context, userID bson.ObjectID) ([]ListProjectResponse, error) {
 	projects, err := s.repo.getAllProjects(ctx, userID)
 	if err != nil {
 		return nil, app_error.InternalServer(err)
 	}
-	var res []GetProjectResponse
+	var res []ListProjectResponse
 	for _, project := range projects {
-		res = append(res, GetProjectResponse{
+		res = append(res, ListProjectResponse{
 			ID:   project.ID,
 			Name: project.Name,
 		})

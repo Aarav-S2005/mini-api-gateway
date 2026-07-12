@@ -45,7 +45,7 @@ func (i *IpFilterPlugin) Validate(config map[string]interface{}) error {
 	return nil
 }
 
-func (i *IpFilterPlugin) CreateMiddleware(config map[string]interface{}) (MiddlewareFunc, error) {
+func (i *IpFilterPlugin) CreateMiddleware(config map[string]interface{}) (func(next http.Handler) http.Handler, error) {
 	var cfg IpFilterConfig
 	b, err := json.Marshal(config)
 	if err != nil {

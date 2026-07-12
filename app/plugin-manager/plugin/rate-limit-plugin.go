@@ -63,7 +63,7 @@ func (r *RateLimitPlugin) Validate(config map[string]interface{}) error {
 	return nil
 }
 
-func (r *RateLimitPlugin) CreateMiddleware(config map[string]interface{}) (MiddlewareFunc, error) {
+func (r *RateLimitPlugin) CreateMiddleware(config map[string]interface{}) (func(next http.Handler) http.Handler, error) {
 	var cfg RateLimitConfig
 	b, err := json.Marshal(config)
 	if err != nil {

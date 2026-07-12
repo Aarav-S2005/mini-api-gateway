@@ -1,16 +1,14 @@
 package project
 
 import (
-	"time"
-
-	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/models"
+	"github.com/Aarav-S2005/mini-api-gateway/app/db/models"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type CreatProjectRequest struct {
-	Name       string          `json:"name"`
-	AccessList []models.Access `json:"access_list"`
+	Name       string   `json:"name"`
+	AccessList []Access `json:"access_list"`
 }
 
 type CreatProjectResponse struct {
@@ -19,17 +17,16 @@ type CreatProjectResponse struct {
 }
 
 type UpdateMiddlewaresRequest struct {
-	Middlewares []models.Middleware `json:"middleware"`
+	Middlewares []models.Middleware `json:"middlewares"`
 }
 
 type UpdateAccessListRequest struct {
-	AccessList []models.Access `json:"access_list"`
+	AccessList []Access `json:"access_list"`
 }
 
 type GetProjectResponse struct {
 	ID          bson.ObjectID       `json:"project_id"`
 	Name        string              `json:"name"`
-	CreatedAt   time.Time           `json:"created_at"`
 	Middlewares []models.Middleware `json:"middlewares"`
 	Permission  string              `json:"permission"`
 }
@@ -37,4 +34,13 @@ type GetProjectResponse struct {
 type ListProjectResponse struct {
 	ID   bson.ObjectID `json:"project_id"`
 	Name string        `json:"name"`
+}
+
+type Access struct {
+	Username   string            `json:"username"`
+	Permission models.Permission `json:"permission"`
+}
+
+type GetAllProjectResponse struct {
+	Projects []ListProjectResponse `json:"projects"`
 }

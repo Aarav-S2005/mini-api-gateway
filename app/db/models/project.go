@@ -14,8 +14,8 @@ const (
 )
 
 type Access struct {
-	UserID     bson.ObjectID `bson:"user_id"`
-	Permission Permission    `bson:"permission"`
+	UserID     bson.ObjectID `bson:"user_id" json:"user_id"`
+	Permission Permission    `bson:"permission" json:"permission"`
 }
 
 type Project struct {

@@ -36,7 +36,7 @@ func (c *CorsPlugin) Validate(config map[string]interface{}) error {
 	return nil
 }
 
-func (c *CorsPlugin) CreateMiddleware(config map[string]interface{}) (MiddlewareFunc, error) {
+func (c *CorsPlugin) CreateMiddleware(config map[string]interface{}) (func(next http.Handler) http.Handler, error) {
 	var cfg CorsConfig
 	b, err := json.Marshal(config)
 	if err != nil {

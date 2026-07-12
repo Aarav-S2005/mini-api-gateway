@@ -30,7 +30,7 @@ func (s *Service) loginUser(ctx context.Context, req RequestDTO) (string, error)
 	if !ok {
 		return "", app_error.Unauthorized("Wrong credentials", err)
 	}
-	token, err := middleware.SignJwt(username)
+	token, err := middleware.SignJwt(user.ID)
 	if err != nil {
 		return "", app_error.InternalServer(err)
 	}
@@ -54,7 +54,7 @@ func (s *Service) signUpUser(ctx context.Context, req RequestDTO) (string, error
 	if err != nil {
 		return "", app_error.InternalServer(err)
 	}
-	token, err := middleware.SignJwt(id.String())
+	token, err := middleware.SignJwt(id)
 	if err != nil {
 		return "", app_error.InternalServer(err)
 	}
