@@ -17,21 +17,24 @@ func SetUpEndpoints(pub *config.Publisher, db *mongo.Database, reg *registry.Plu
 	authHandler := auth.NewHandler(auth.NewRepository(db))
 	upstreamHandler := upstream.NewHandler(upstream.NewRepository(db), pub)
 	routeHandler := route.NewHandler(route.NewRepository(db), pub)
-	projectHandler := project.NewHandler(project.NewRepository(db), reg, upstreamHandler, routeHandler)
+	projectHandler := project.NewHandler(project.NewRepository(db), reg, pub, upstreamHandler, routeHandler)
 
 	r := chi.NewRouter()
 	r.Use(chiMid.Logger)
 	r.Use(chiMid.Recoverer)
-	r.Group(func(r chi.Router) {
-		r.Mount("/auth", authHandler)
-		r.Route("/projects", func(r chi.Router) {
-			r.Use(
-				middleware.CookieToBearer,
-				middleware.Verifier(),
-				middleware.Authenticator(),
-			)
-			r.Mount("/", projectHandler)
+	r.Route("/api", func(r chi.Router) {
+		r.Group(func(r chi.Router) {
+			r.Mount("/auth", authHandler)
+			r.Route("/projects", func(r chi.Router) {
+				r.Use(
+					middleware.CookieToBearer,
+					middleware.Verifier(),
+					middleware.Authenticator(),
+				)
+				r.Mount("/", projectHandler)
+			})
 		})
 	})
+
 	return r
 }

@@ -57,7 +57,7 @@ func (r *RateLimitPlugin) Validate(config map[string]interface{}) error {
 	if cfg.Strategy == FixedWindow && cfg.FixedWindow != nil && (cfg.FixedWindow.Limit < 1 || cfg.FixedWindow.WindowSeconds < 1) {
 		return errors.New("fixed window config error")
 	}
-	if cfg.Strategy == TokenBucket && cfg.TokenBucket != nil && (cfg.TokenBucket.RefillRate < 0 || cfg.TokenBucket.RefillRate < 1) {
+	if cfg.Strategy == TokenBucket && cfg.TokenBucket != nil && (cfg.TokenBucket.Capacity < 1 || cfg.TokenBucket.RefillRate < 1) {
 		return errors.New("token bucket config error")
 	}
 	return nil

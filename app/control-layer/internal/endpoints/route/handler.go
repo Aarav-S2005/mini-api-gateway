@@ -1,12 +1,15 @@
 package route
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/config"
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/app_error"
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/lib"
 	"github.com/go-chi/chi/v5"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type Handler struct {
@@ -46,6 +49,10 @@ func (h *Handler) createRoute(w http.ResponseWriter, r *http.Request) {
 	}
 	res, err := h.service.createRoute(r.Context(), reqBody, userID, projectID)
 	if err != nil {
+		app_error.HandleError(w, err)
+		return
+	}
+	if err = h.sendRedisUpdate(r.Context(), res.RouteID); err != nil {
 		app_error.HandleError(w, err)
 		return
 	}
@@ -97,6 +104,10 @@ func (h *Handler) updateRoute(w http.ResponseWriter, r *http.Request) {
 		app_error.HandleError(w, err)
 		return
 	}
+	if err = h.sendRedisUpdate(r.Context(), routeID); err != nil {
+		app_error.HandleError(w, err)
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -111,5 +122,18 @@ func (h *Handler) deleteRoute(w http.ResponseWriter, r *http.Request) {
 		app_error.HandleError(w, err)
 		return
 	}
+	if err = h.sendRedisUpdate(r.Context(), routeID); err != nil {
+		app_error.HandleError(w, err)
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// HELPER
+func (h *Handler) sendRedisUpdate(ctx context.Context, routeID bson.ObjectID) error {
+	return h.pub.Publish(ctx, config.UpdateEventNotification{
+		Resource:         config.ResourceRoute,
+		ResourceID:       routeID,
+		ConfigUpdateTime: time.Now(),
+	})
 }

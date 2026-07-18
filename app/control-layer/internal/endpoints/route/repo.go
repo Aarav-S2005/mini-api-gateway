@@ -23,7 +23,7 @@ func NewRepository(db *mongo.Database) *Repository {
 }
 
 func (repo *Repository) getRouteCollection() *mongo.Collection {
-	return repo.db.Collection("route")
+	return repo.db.Collection("routes")
 }
 
 func (repo *Repository) projectAccessFilter(giveOnlyEditingPermission bool, userID, projectID bson.ObjectID) bson.M {

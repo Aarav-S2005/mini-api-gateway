@@ -8,6 +8,16 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const ConfigUpdatesChannel = "gateway:config:updates"
+
+type ResourceType string
+
+const (
+	ResourceProject  ResourceType = "project"
+	ResourceRoute    ResourceType = "route"
+	ResourceUpstream ResourceType = "upstream"
+)
+
 type Subscriber struct {
 	rdb *redis.Client
 }
@@ -16,12 +26,9 @@ func NewSubscriber(rdb *redis.Client) *Subscriber {
 	return &Subscriber{rdb: rdb}
 }
 
-func (subscriber *Subscriber) Subscribe(
-	ctx context.Context,
-	channel string,
-	handler func(context.Context, config.UpdateEventNotification) error,
+func (subscriber *Subscriber) Subscribe(ctx context.Context, handler func(context.Context, config.UpdateEventNotification) error,
 ) error {
-	sub := subscriber.rdb.Subscribe(ctx, channel)
+	sub := subscriber.rdb.Subscribe(ctx, ConfigUpdatesChannel)
 	defer sub.Close()
 
 	if _, err := sub.Receive(ctx); err != nil {

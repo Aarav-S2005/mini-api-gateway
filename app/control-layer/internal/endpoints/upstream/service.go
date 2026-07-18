@@ -103,6 +103,9 @@ func (s *Service) deleteUpstream(ctx context.Context, userID, projectID, upstrea
 
 // HELPER
 func validateDTO(reqBody CreateOrUpdateUpstreamRequestDTO) error {
+	if reqBody.Name == "" || len(reqBody.Backends) == 0 || reqBody.LoadBalancingStrategy == "" {
+		return app_error.BadRequest("invalid request body", errors.New("name, load balancing strategy and backend are required"))
+	}
 	for _, backend := range reqBody.Backends {
 		if backend.URL == "" {
 			return app_error.BadRequest("invalid data in json", errors.New("backend URL cannot be empty"))
@@ -112,10 +115,23 @@ func validateDTO(reqBody CreateOrUpdateUpstreamRequestDTO) error {
 			return app_error.BadRequest("invalid data in json", err)
 		}
 
-		if reqBody.LoadBalancingStrategy == models.WeightedRoundRobin &&
+		if isValidLoadBalancingStrategy(reqBody.LoadBalancingStrategy) || reqBody.LoadBalancingStrategy == models.WeightedRoundRobin &&
 			backend.Weight == nil {
 			return app_error.BadRequest("invalid data in json", errors.New("weight is required for weighted round robin"))
 		}
 	}
 	return nil
+}
+
+func isValidLoadBalancingStrategy(s models.LoadBalancingStrategy) bool {
+	switch s {
+	case models.RoundRobinLoadBalancing,
+		models.RandomLoadBalancing,
+		models.IPHashLoadBalancing,
+		models.WeightedRoundRobin,
+		models.LeastConnections:
+		return true
+	default:
+		return false
+	}
 }

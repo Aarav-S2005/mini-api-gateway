@@ -9,6 +9,16 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
+const ConfigUpdatesChannel = "gateway:config:updates"
+
+type ResourceType string
+
+const (
+	ResourceProject  ResourceType = "project"
+	ResourceRoute    ResourceType = "route"
+	ResourceUpstream ResourceType = "upstream"
+)
+
 type Publisher struct {
 	client *redis.Client
 }
@@ -19,17 +29,17 @@ func NewPublisher(client *redis.Client) *Publisher {
 	}
 }
 
-func (p *Publisher) Publish(ctx context.Context, channel string, payload any) error {
+func (p *Publisher) Publish(ctx context.Context, payload UpdateEventNotification) error {
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
 
-	return p.client.Publish(ctx, channel, data).Err()
+	return p.client.Publish(ctx, ConfigUpdatesChannel, data).Err()
 }
 
 type UpdateEventNotification struct {
-	Resource         string
-	ResourceID       bson.ObjectID
-	ConfigUpdateTime time.Time
+	Resource         ResourceType  `json:"resource"`
+	ResourceID       bson.ObjectID `json:"resource_id"`
+	ConfigUpdateTime time.Time     `json:"config_update_time"`
 }

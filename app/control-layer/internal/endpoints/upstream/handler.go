@@ -1,12 +1,15 @@
 package upstream
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/config"
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/app_error"
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/lib"
 	"github.com/go-chi/chi/v5"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type Handler struct {
@@ -51,6 +54,10 @@ func (h *Handler) createUpstream(w http.ResponseWriter, r *http.Request) {
 	}
 	upstreamID, err := h.service.createUpstream(r.Context(), userID, projectID, reqBody)
 	if err != nil {
+		app_error.HandleError(w, err)
+		return
+	}
+	if err = h.sendRedisUpdate(r.Context(), upstreamID); err != nil {
 		app_error.HandleError(w, err)
 		return
 	}
@@ -118,8 +125,17 @@ func (h *Handler) updateUpstream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var reqBody CreateOrUpdateUpstreamRequestDTO
+	err = lib.ConvertJSONToStruct(r, &reqBody)
+	if err != nil {
+		app_error.HandleError(w, app_error.BadRequest("invalid request body", err))
+		return
+	}
 	err = h.service.updateUpstream(r.Context(), userID, projectID, upstreamID, reqBody)
 	if err != nil {
+		app_error.HandleError(w, err)
+		return
+	}
+	if err = h.sendRedisUpdate(r.Context(), upstreamID); err != nil {
 		app_error.HandleError(w, err)
 		return
 	}
@@ -148,10 +164,19 @@ func (h *Handler) deleteUpstream(w http.ResponseWriter, r *http.Request) {
 		app_error.HandleError(w, err)
 		return
 	}
+	if err = h.sendRedisUpdate(r.Context(), upstreamID); err != nil {
+		app_error.HandleError(w, err)
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// finish later
-func (h *Handler) publishChanges() {
+// HLPER
 
+func (h *Handler) sendRedisUpdate(ctx context.Context, upstreamID bson.ObjectID) error {
+	return h.pub.Publish(ctx, config.UpdateEventNotification{
+		Resource:         config.ResourceUpstream,
+		ResourceID:       upstreamID,
+		ConfigUpdateTime: time.Now(),
+	})
 }

@@ -12,14 +12,15 @@ const (
 	RoundRobinLoadBalancing LoadBalancingStrategy = "ROUND_ROBIN"
 	RandomLoadBalancing     LoadBalancingStrategy = "RANDOM"
 	IPHashLoadBalancing     LoadBalancingStrategy = "IP_HASH"
-	WeightedRoundRobin      LoadBalancingStrategy = "WEIGHT_ROUND_ROBIN"
+	WeightedRoundRobin      LoadBalancingStrategy = "WEIGHTED_ROUND_ROBIN"
+	LeastConnections        LoadBalancingStrategy = "LEAST_CONNECTIONS"
 )
 
 type Upstream struct {
 	ID                    bson.ObjectID         `bson:"_id,omitempty"`
 	ProjectID             bson.ObjectID         `bson:"project_id"`
 	Name                  string                `bson:"name"`
-	LoadBalancingStrategy LoadBalancingStrategy `bson:"strategy"`
+	LoadBalancingStrategy LoadBalancingStrategy `bson:"load_balancing_strategy"`
 	Backends              []Backend             `bson:"backends"`
 	CreatedAt             time.Time             `bson:"created_at"`
 	UpdatedAt             time.Time             `bson:"updated_at"`

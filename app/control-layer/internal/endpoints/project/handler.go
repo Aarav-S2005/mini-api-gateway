@@ -1,23 +1,28 @@
 package project
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/config"
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/app_error"
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/internal/lib"
 	"github.com/Aarav-S2005/mini-api-gateway/app/plugin-manager/registry"
 	"github.com/go-chi/chi/v5"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type Handler struct {
 	service *Service
 	reg     *registry.PluginRegistry
+	pub     *config.Publisher
 }
 
-func NewHandler(repo *Repository, pluginRegistry *registry.PluginRegistry, upstreamHandler, routeHandler chi.Router) chi.Router {
-	h := &Handler{service: NewService(repo), reg: pluginRegistry}
+func NewHandler(repo *Repository, pluginRegistry *registry.PluginRegistry, pub *config.Publisher, upstreamHandler, routeHandler chi.Router) chi.Router {
+	h := &Handler{service: NewService(repo), reg: pluginRegistry, pub: pub}
 	return h.initRoutes(upstreamHandler, routeHandler)
 }
 
@@ -57,6 +62,10 @@ func (h *Handler) createProject(w http.ResponseWriter, r *http.Request) {
 		app_error.HandleError(w, err)
 		return
 	}
+	if err = h.sendRedisUpdate(r.Context(), res.Id); err != nil {
+		app_error.HandleError(w, err)
+		return
+	}
 	lib.ConvertStructToJSON(w, http.StatusCreated, res)
 }
 
@@ -83,6 +92,10 @@ func (h *Handler) deleteProject(w http.ResponseWriter, r *http.Request) {
 	}
 	err = h.service.DeleteProject(r.Context(), projectID, userID)
 	if err != nil {
+		app_error.HandleError(w, err)
+		return
+	}
+	if err = h.sendRedisUpdate(r.Context(), projectID); err != nil {
 		app_error.HandleError(w, err)
 		return
 	}
@@ -117,6 +130,10 @@ func (h *Handler) updateMiddlewares(w http.ResponseWriter, r *http.Request) {
 	}
 	err = h.service.UpdateMiddlewares(r.Context(), projectID, userID, req, *h.reg)
 	if err != nil {
+		app_error.HandleError(w, err)
+		return
+	}
+	if err = h.sendRedisUpdate(r.Context(), projectID); err != nil {
 		app_error.HandleError(w, err)
 		return
 	}
@@ -159,5 +176,19 @@ func (h *Handler) deleteMiddleware(w http.ResponseWriter, r *http.Request) {
 		app_error.HandleError(w, err)
 		return
 	}
+	if err = h.sendRedisUpdate(r.Context(), projectID); err != nil {
+		app_error.HandleError(w, err)
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// HELPER
+
+func (h *Handler) sendRedisUpdate(ctx context.Context, projectID bson.ObjectID) error {
+	return h.pub.Publish(ctx, config.UpdateEventNotification{
+		Resource:         config.ResourceProject,
+		ResourceID:       projectID,
+		ConfigUpdateTime: time.Now(),
+	})
 }

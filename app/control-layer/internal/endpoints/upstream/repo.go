@@ -23,7 +23,7 @@ func NewRepository(db *mongo.Database) *Repository {
 }
 
 func (repo *Repository) getUpstreamCollection() *mongo.Collection {
-	return repo.db.Collection("upstream")
+	return repo.db.Collection("upstreams")
 }
 
 func (repo *Repository) projectAccessFilter(giveOnlyEditingPermission bool, userID, projectId bson.ObjectID) bson.M {

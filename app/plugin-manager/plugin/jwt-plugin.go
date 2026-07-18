@@ -11,7 +11,6 @@ import (
 )
 
 type Source string
-type contextKey string
 
 const (
 	SourceCookie Source = "cookie"
