@@ -1,7 +1,6 @@
 package store
 
 import (
-	"crypto/rsa"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -17,7 +16,6 @@ type Snapshot struct {
 
 type RuntimeProject struct {
 	ProjectID   bson.ObjectID
-	JWTKey      *rsa.PublicKey
 	Middlewares []models.Middleware
 	Mux         http.Handler
 }

@@ -8,16 +8,25 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"sort"
 	"time"
 
 	"github.com/Aarav-S2005/mini-api-gateway/app/db/models"
 	loadbalancer "github.com/Aarav-S2005/mini-api-gateway/app/gateway/internal/lb"
+	pluginManager "github.com/Aarav-S2005/mini-api-gateway/app/plugin-manager/registry"
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 var ErrCouldNotLoadFromDB = errors.New("could not load from database")
+
+var jwtPluginName = "jwt-auth"
+var middlewareOrder = map[string]int{
+	"cors":       0,
+	"ip-limit":   1,
+	"rate-limit": 2,
+}
 
 func getAllDocuments[T any](ctx context.Context, db *mongo.Database, collectionName string) ([]T, error) {
 	collection := db.Collection(collectionName)
@@ -36,7 +45,7 @@ func getAllDocuments[T any](ctx context.Context, db *mongo.Database, collectionN
 	return docs, nil
 }
 
-func LoadSnapshot(db *mongo.Database, transport *http.Transport, lbManager *loadbalancer.LBManager) (*Snapshot, error) {
+func LoadSnapshot(db *mongo.Database, transport *http.Transport, lbManager *loadbalancer.LBManager, registry *pluginManager.PluginRegistry) (*Snapshot, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	projects, err := getAllDocuments[models.Project](ctx, db, "projects")
@@ -60,7 +69,7 @@ func LoadSnapshot(db *mongo.Database, transport *http.Transport, lbManager *load
 	if err = loadRuntimeUpstreams(upstreams, snapshot, transport, lbManager); err != nil {
 		return nil, err
 	}
-	if err = loadProjects(projects, routes, snapshot, lbManager); err != nil {
+	if err = loadProjects(projects, routes, snapshot, lbManager, registry); err != nil {
 		return nil, err
 	}
 
@@ -104,7 +113,7 @@ func loadRuntimeUpstreams(upstreams []models.Upstream, snapshot *Snapshot, trans
 	return nil
 }
 
-func loadProjects(projects []models.Project, routes []models.Route, snapshot *Snapshot, lbManager *loadbalancer.LBManager) error {
+func loadProjects(projects []models.Project, routes []models.Route, snapshot *Snapshot, lbManager *loadbalancer.LBManager, registry *pluginManager.PluginRegistry) error {
 	projectRoutes := make(map[bson.ObjectID][]models.Route)
 	for _, route := range routes {
 		if !route.Enabled {
@@ -116,9 +125,30 @@ func loadProjects(projects []models.Project, routes []models.Route, snapshot *Sn
 
 	for _, project := range projects {
 
-		router := chi.NewRouter()
+		globalMiddlewares, jwtConfig := splitJWT(project.Middlewares)
 
-		// will build middleware chain
+		chain, err := buildMiddlewareChain(globalMiddlewares, registry)
+		if err != nil {
+			log.Printf("ERROR: project %s has invalid middleware config, excluding from snapshot: %v", project.ID, err)
+			continue
+		}
+
+		var jwtMW func(http.Handler) http.Handler
+		if jwtConfig != nil {
+			plugin, ok := registry.Get(jwtConfig.Name)
+			if !ok {
+				log.Printf("ERROR: project %s references unknown jwt plugin %q, excluding from snapshot", project.ID, jwtConfig.Name)
+				continue
+			}
+			jwtMW, err = plugin.CreateMiddleware(jwtConfig.Config)
+			if err != nil {
+				log.Printf("ERROR: project %s jwt middleware config invalid, excluding from snapshot: %v", project.ID, err)
+				continue
+			}
+		}
+
+		router := chi.NewRouter()
+		router.Use(chain...)
 
 		for _, route := range projectRoutes[project.ID] {
 			upstream, ok := snapshot.Upstreams[project.ID][route.UpstreamName]
@@ -129,20 +159,29 @@ func loadProjects(projects []models.Project, routes []models.Route, snapshot *Sn
 			}
 
 			handler := NewProxyHandler(upstream, lbManager)
+			var target chi.Router = router
+
+			if route.AuthMode == models.AuthRequired {
+				if jwtMW == nil {
+					log.Printf("WARN: project %s route %s requires auth but no jwt middleware configured, skipping route",
+						project.ID, route.Path)
+					continue
+				}
+				target = router.With(jwtMW)
+			}
 
 			switch route.PathType {
 			case models.PathExact:
-				router.Method(route.Method, route.Path, handler)
+				target.Method(route.Method, route.Path, handler)
 			case models.PathPrefix:
-				router.Method(route.Method, route.Path+"/*", handler)
+				target.Method(route.Method, route.Path+"/*", handler)
 			case models.PathRegex:
-				router.Method(route.Method, route.Path, handler)
+				target.Method(route.Method, route.Path, handler)
 			}
 		}
 
 		snapshot.Projects[project.GatewayApiKey] = &RuntimeProject{
 			ProjectID:   project.ID,
-			JWTKey:      nil, // will load if needed only, else it will be included in middlewrae chain
 			Middlewares: project.Middlewares,
 			Mux:         router,
 		}
@@ -171,30 +210,21 @@ func buildReverseProxy(upstreamID bson.ObjectID, target *url.URL, transport *htt
 
 	return &httputil.ReverseProxy{
 		Transport: transport,
-		Director: func(r *http.Request) {
-			r.URL.Scheme = target.Scheme
-			r.URL.Host = target.Host
-			r.Host = target.Host
-			r.Header.Del("X-Gateway-Key")
+		Rewrite: func(pr *httputil.ProxyRequest) {
+			pr.SetURL(target)
+
+			pr.Out.Header.Del("X-Gateway-Key")
 		},
 
-		// ModifyResponse sees actual HTTP responses from the backend —
-		// this is where 5xx detection belongs, not ErrorHandler.
 		ModifyResponse: func(resp *http.Response) error {
 			if resp.StatusCode >= 500 {
 				lbManager.MarkUnhealthy(upstreamID, backendKey)
 			} else {
-				// reactive recovery: a good response means the backend is alive.
-				// Active health checks (once wired) will do this more reliably;
-				// this just avoids a backend staying marked-down forever between checks.
 				lbManager.MarkHealthy(upstreamID, backendKey)
 			}
 			return nil
 		},
 
-		// ErrorHandler only fires on transport-level failures — dial refused,
-		// timeout, TLS handshake failure, connection reset. No HTTP response
-		// exists yet at this point, so this is always "unreachable", not "5xx".
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			lbManager.MarkUnhealthy(upstreamID, backendKey)
 			http.Error(w, "upstream unavailable", http.StatusBadGateway)
@@ -202,4 +232,40 @@ func buildReverseProxy(upstreamID bson.ObjectID, target *url.URL, transport *htt
 
 		FlushInterval: -1,
 	}
+}
+
+func buildMiddlewareChain(middlewares []models.Middleware, registry *pluginManager.PluginRegistry) ([]func(http.Handler) http.Handler, error) {
+
+	sort.SliceStable(middlewares, func(i, j int) bool {
+		oi, _ := middlewareOrder[middlewares[i].Name]
+		oj, _ := middlewareOrder[middlewares[j].Name]
+		return oi < oj
+	})
+
+	chain := make([]func(http.Handler) http.Handler, 0, len(middlewares))
+	for _, mw := range middlewares {
+		plugin, ok := registry.Get(mw.Name)
+		if !ok {
+			return nil, fmt.Errorf("middleware %q not registered", mw.Name)
+		}
+		mwFunc, err := plugin.CreateMiddleware(mw.Config)
+		if err != nil {
+			return nil, fmt.Errorf("middleware %q: %w", mw.Name, err)
+		}
+		chain = append(chain, mwFunc)
+	}
+	return chain, nil
+}
+
+func splitJWT(middlewares []models.Middleware) ([]models.Middleware, *models.Middleware) {
+	global := make([]models.Middleware, 0, len(middlewares))
+	var jwt *models.Middleware
+	for _, mw := range middlewares {
+		if mw.Name == jwtPluginName {
+			jwt = &mw
+			continue
+		}
+		global = append(global, mw)
+	}
+	return global, jwt
 }
