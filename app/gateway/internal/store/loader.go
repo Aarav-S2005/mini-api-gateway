@@ -78,36 +78,8 @@ func LoadSnapshot(db *mongo.Database, transport *http.Transport, lbManager *load
 
 func loadRuntimeUpstreams(upstreams []models.Upstream, snapshot *Snapshot, transport *http.Transport, lbManager *loadbalancer.LBManager) error {
 	for _, upstream := range upstreams {
-
-		backends := make([]RuntimeBackend, 0, len(upstream.Backends))
-
-		for _, backend := range upstream.Backends {
-
-			target, err := url.Parse(backend.URL)
-			if err != nil {
-				return fmt.Errorf("invalid backend url %q: %w", backend.URL, err)
-			}
-
-			weight := 1
-			if backend.Weight != nil {
-				weight = *backend.Weight
-			}
-
-			backends = append(backends, RuntimeBackend{
-				URL:    target,
-				Proxy:  proxy.BuildReverseProxy(upstream.ID, target, transport, lbManager),
-				Weight: weight,
-			})
-		}
-
-		if snapshot.Upstreams[upstream.ProjectID] == nil {
-			snapshot.Upstreams[upstream.ProjectID] = make(map[string]*RuntimeUpstream)
-		}
-
-		snapshot.Upstreams[upstream.ProjectID][upstream.Name] = &RuntimeUpstream{
-			ID:       upstream.ID,
-			Strategy: upstream.LoadBalancingStrategy,
-			Backends: backends,
+		if err := LoadSingleRuntimeUpstream(upstream, snapshot, transport, lbManager); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -153,9 +125,7 @@ func loadProjects(projects []models.Project, routes []models.Route, snapshot *Sn
 		for _, route := range projectRoutes[project.ID] {
 			upstream, ok := snapshot.Upstreams[project.ID][route.UpstreamName]
 			if !ok {
-				log.Printf("WARN: project %s route %s references unknown upstream %q, skipping",
-					project.ID, route.Path, route.UpstreamName)
-				continue
+				return fmt.Errorf("WARN: project %s route %s references unknown upstream %q, skipping", project.ID, route.Path, route.UpstreamName)
 			}
 
 			handler := NewProxyHandler(upstream, lbManager)
@@ -239,4 +209,38 @@ func SplitJWT(middlewares []models.Middleware) ([]models.Middleware, *models.Mid
 		global = append(global, mw)
 	}
 	return global, jwt
+}
+
+func LoadSingleRuntimeUpstream(upstream models.Upstream, snapshot *Snapshot, transport *http.Transport, lbManager *loadbalancer.LBManager) error {
+	backends := make([]RuntimeBackend, 0, len(upstream.Backends))
+
+	for _, backend := range upstream.Backends {
+
+		target, err := url.Parse(backend.URL)
+		if err != nil {
+			return fmt.Errorf("invalid backend url %q: %w", backend.URL, err)
+		}
+
+		weight := 1
+		if backend.Weight != nil {
+			weight = *backend.Weight
+		}
+
+		backends = append(backends, RuntimeBackend{
+			URL:    target,
+			Proxy:  proxy.BuildReverseProxy(upstream.ID, target, transport, lbManager),
+			Weight: weight,
+		})
+	}
+
+	if snapshot.Upstreams[upstream.ProjectID] == nil {
+		snapshot.Upstreams[upstream.ProjectID] = make(map[string]*RuntimeUpstream)
+	}
+
+	snapshot.Upstreams[upstream.ProjectID][upstream.Name] = &RuntimeUpstream{
+		ID:       upstream.ID,
+		Strategy: upstream.LoadBalancingStrategy,
+		Backends: backends,
+	}
+	return nil
 }
