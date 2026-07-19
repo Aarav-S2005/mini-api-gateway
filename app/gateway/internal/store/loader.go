@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"sort"
 	"time"
 
 	"github.com/Aarav-S2005/mini-api-gateway/app/db/models"
 	loadbalancer "github.com/Aarav-S2005/mini-api-gateway/app/gateway/internal/lb"
+	"github.com/Aarav-S2005/mini-api-gateway/app/gateway/internal/proxy"
 	pluginManager "github.com/Aarav-S2005/mini-api-gateway/app/plugin-manager/registry"
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -95,7 +95,7 @@ func loadRuntimeUpstreams(upstreams []models.Upstream, snapshot *Snapshot, trans
 
 			backends = append(backends, RuntimeBackend{
 				URL:    target,
-				Proxy:  buildReverseProxy(upstream.ID, target, transport, lbManager),
+				Proxy:  proxy.BuildReverseProxy(upstream.ID, target, transport, lbManager),
 				Weight: weight,
 			})
 		}
@@ -125,9 +125,9 @@ func loadProjects(projects []models.Project, routes []models.Route, snapshot *Sn
 
 	for _, project := range projects {
 
-		globalMiddlewares, jwtConfig := splitJWT(project.Middlewares)
+		globalMiddlewares, jwtConfig := SplitJWT(project.Middlewares)
 
-		chain, err := buildMiddlewareChain(globalMiddlewares, registry)
+		chain, err := BuildMiddlewareChain(globalMiddlewares, registry)
 		if err != nil {
 			log.Printf("ERROR: project %s has invalid middleware config, excluding from snapshot: %v", project.ID, err)
 			continue
@@ -205,36 +205,7 @@ func NewProxyHandler(upstream *RuntimeUpstream, lbManager *loadbalancer.LBManage
 	}
 }
 
-func buildReverseProxy(upstreamID bson.ObjectID, target *url.URL, transport *http.Transport, lbManager *loadbalancer.LBManager) *httputil.ReverseProxy {
-	backendKey := target.String()
-
-	return &httputil.ReverseProxy{
-		Transport: transport,
-		Rewrite: func(pr *httputil.ProxyRequest) {
-			pr.SetURL(target)
-
-			pr.Out.Header.Del("X-Gateway-Key")
-		},
-
-		ModifyResponse: func(resp *http.Response) error {
-			if resp.StatusCode >= 500 {
-				lbManager.MarkUnhealthy(upstreamID, backendKey)
-			} else {
-				lbManager.MarkHealthy(upstreamID, backendKey)
-			}
-			return nil
-		},
-
-		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			lbManager.MarkUnhealthy(upstreamID, backendKey)
-			http.Error(w, "upstream unavailable", http.StatusBadGateway)
-		},
-
-		FlushInterval: -1,
-	}
-}
-
-func buildMiddlewareChain(middlewares []models.Middleware, registry *pluginManager.PluginRegistry) ([]func(http.Handler) http.Handler, error) {
+func BuildMiddlewareChain(middlewares []models.Middleware, registry *pluginManager.PluginRegistry) ([]func(http.Handler) http.Handler, error) {
 
 	sort.SliceStable(middlewares, func(i, j int) bool {
 		oi, _ := middlewareOrder[middlewares[i].Name]
@@ -257,7 +228,7 @@ func buildMiddlewareChain(middlewares []models.Middleware, registry *pluginManag
 	return chain, nil
 }
 
-func splitJWT(middlewares []models.Middleware) ([]models.Middleware, *models.Middleware) {
+func SplitJWT(middlewares []models.Middleware) ([]models.Middleware, *models.Middleware) {
 	global := make([]models.Middleware, 0, len(middlewares))
 	var jwt *models.Middleware
 	for _, mw := range middlewares {

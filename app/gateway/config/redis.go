@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"encoding/json"
+	"log"
 
 	"github.com/Aarav-S2005/mini-api-gateway/app/control-layer/config"
 	"github.com/redis/go-redis/v9"
@@ -47,10 +48,11 @@ func (subscriber *Subscriber) Subscribe(ctx context.Context, handler func(contex
 			}
 			var notification config.UpdateEventNotification
 			if err := json.Unmarshal([]byte(msg.Payload), &notification); err != nil {
+				log.Printf("invalid config notification: %v", err)
 				continue
 			}
 			if err := handler(ctx, notification); err != nil {
-				return err
+				log.Printf("config update failed: %v", err)
 			}
 		}
 	}

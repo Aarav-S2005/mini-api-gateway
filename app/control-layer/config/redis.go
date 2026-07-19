@@ -12,11 +12,16 @@ import (
 const ConfigUpdatesChannel = "gateway:config:updates"
 
 type ResourceType string
+type Operation string
 
 const (
 	ResourceProject  ResourceType = "project"
 	ResourceRoute    ResourceType = "route"
 	ResourceUpstream ResourceType = "upstream"
+
+	WriteOperation   Operation = "write"
+	DeleteOperation  Operation = "delete"
+	UpdateOperation  Operation = "update"
 )
 
 type Publisher struct {
@@ -40,6 +45,7 @@ func (p *Publisher) Publish(ctx context.Context, payload UpdateEventNotification
 
 type UpdateEventNotification struct {
 	Resource         ResourceType  `json:"resource"`
+	Operation  Operation
 	ResourceID       bson.ObjectID `json:"resource_id"`
 	ConfigUpdateTime time.Time     `json:"config_update_time"`
 }
