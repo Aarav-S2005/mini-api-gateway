@@ -27,8 +27,7 @@ func NewSubscriber(rdb *redis.Client) *Subscriber {
 	return &Subscriber{rdb: rdb}
 }
 
-func (subscriber *Subscriber) Subscribe(ctx context.Context, handler func(context.Context, config.UpdateEventNotification) error,
-) error {
+func (subscriber *Subscriber) Subscribe(ctx context.Context, handler func(context.Context, config.UpdateEventNotification) error) error {
 	sub := subscriber.rdb.Subscribe(ctx, ConfigUpdatesChannel)
 	defer sub.Close()
 

@@ -23,8 +23,6 @@ func BuildReverseProxy(upstreamID bson.ObjectID, target *url.URL, transport *htt
 		ModifyResponse: func(resp *http.Response) error {
 			if resp.StatusCode >= 500 {
 				lbManager.MarkUnhealthy(upstreamID, backendKey)
-			} else {
-				lbManager.MarkHealthy(upstreamID, backendKey)
 			}
 			return nil
 		},

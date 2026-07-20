@@ -36,7 +36,7 @@ func NewSynchronizeLoader(registry *store.Registry, db *mongo.Database, transpor
 	}
 }
 
-func (sl *SynchronizeLoader) handler(ctx context.Context, notification config.UpdateEventNotification) error {
+func (sl *SynchronizeLoader) Handler(ctx context.Context, notification config.UpdateEventNotification) error {
 	switch notification.Resource {
 	case config.ResourceProject, config.ResourceRoute:
 		return sl.loadRuntimeProject(ctx, notification)

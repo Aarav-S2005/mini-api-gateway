@@ -8,7 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-func NewMongo(isDev bool, uri, db string) (*mongo.Database, error) {
+func NewMongo(isDev bool, uri, db string) (*mongo.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -31,5 +31,5 @@ func NewMongo(isDev bool, uri, db string) (*mongo.Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	return client.Database(db), nil
+	return client, nil
 }
