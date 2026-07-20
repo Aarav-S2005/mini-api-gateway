@@ -13,6 +13,7 @@ import (
 	"github.com/Aarav-S2005/mini-api-gateway/app/gateway/config"
 	"github.com/Aarav-S2005/mini-api-gateway/app/gateway/internal/health"
 	"github.com/Aarav-S2005/mini-api-gateway/app/gateway/internal/lb"
+	"github.com/Aarav-S2005/mini-api-gateway/app/gateway/internal/proxy"
 	"github.com/Aarav-S2005/mini-api-gateway/app/gateway/internal/store"
 	"github.com/Aarav-S2005/mini-api-gateway/app/gateway/internal/sync"
 	"github.com/Aarav-S2005/mini-api-gateway/app/plugin-manager/registry"
@@ -83,4 +84,18 @@ func main() {
 
 	checker := health.NewChecker(&transport, snapshotRegistry, lbManager)
 	checker.Run(ctx)
+
+	h := proxy.NewHandler(snapshotRegistry)
+	httpServer := &http.Server{
+		Addr:              cfg.Port,
+		Handler:           http.HandlerFunc(h.ServeHTTP),
+		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      0 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+	err = httpServer.ListenAndServe()
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
 }

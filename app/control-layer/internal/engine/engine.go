@@ -25,12 +25,14 @@ func Run() {
 	middleware.InitAuth(cfg.JwtSecret)
 
 	// DB
-	mongodb, err := db.NewMongo(true, cfg.MongoUri, cfg.MongoDb)
+	mongoClient, err := db.NewMongo(true, cfg.MongoUri, cfg.MongoDb)
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
+	mongodb := mongoClient.Database(cfg.MongoDb)
 	log.Println("mongodb connected")
+	// defer mongoClient.Disconnect(ctx)
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     cfg.RedisUri,
