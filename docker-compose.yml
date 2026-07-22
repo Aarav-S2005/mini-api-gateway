@@ -1,0 +1,40 @@
+services:
+  redis:
+    image: redis:8-alpine
+    ports:
+      - "6379:6379"
+
+  mongodb:
+    image: mongo:8
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  control-layer:
+    build:
+      context: ./app
+      dockerfile: control-layer/Dockerfile
+    env_file:
+      - ./app/.env.docker
+    ports:
+      - "3001:3001"
+    depends_on:
+      - redis
+      - mongodb
+
+  gateway:
+    build:
+      context: ./app
+      dockerfile: gateway/Dockerfile
+    env_file:
+      - ./app/.env.docker
+    ports:
+      - "3002:3002"
+    depends_on:
+      - control-layer
+      - redis
+      - mongodb
+
+volumes:
+  mongodb_data:
