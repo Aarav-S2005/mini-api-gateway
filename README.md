@@ -4,6 +4,36 @@ A lightweight, high-performance API gateway written in Go that separates configu
 
 ---
 
+## Table of Contents
+
+- [Architecture Overview](#architecture-overview)
+  - [Core Components](#core-components)
+  - [Design Principles](#design-principles)
+- [Control Plane](#control-plane)
+  - [Core Responsibilities](#core-responsibilities)
+  - [Configuration Publishing](#configuration-publishing)
+- [Gateway Plane](#gateway-plane)
+  - [Load Balancing](#load-balancing)
+  - [Health Checking](#health-checking)
+  - [Live Syncing](#live-syncing)
+- [Request Handling in Gateway](#request-handling-in-gateway)
+  - [Request Path](#request-path)
+- [Directory Structure](#directory-structure)
+- [Reverse Proxy Implementation](#reverse-proxy-implementation)
+  - [Reverse Proxy Architecture](#reverse-proxy-architecture)
+  - [Connection Tracking](#connection-tracking)
+- [Plugin Manager](#plugin-manager)
+  - [Built-in Plugins](#built-in-plugins)
+  - [Plugin Interface](#plugin-interface)
+  - [Middleware Chain Execution](#middleware-chain-execution)
+- [Getting Started](#getting-started)
+  - [Requirements](#requirements)
+  - [Option 1: Using Docker Compose](#option-1-using-docker-compose)
+  - [Option 2: Manual Setup](#option-2-manual-setup)
+  - [First Steps After Startup](#first-steps-after-startup)
+
+---
+
 ## Architecture Overview
 
 Mini API Gateway is built on a clean control-plane/data-plane separation architecture, enabling independent scaling and management of configuration versus traffic handling.
