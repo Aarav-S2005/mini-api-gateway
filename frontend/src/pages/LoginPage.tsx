@@ -69,7 +69,7 @@ export const LoginPage: React.FC = () => {
             <p className="font-body text-xs text-stone-500 mt-1">
               {isSignup
                 ? 'Register to start managing projects and routes'
-                : 'Sign in to access your Gateway Control Layer'}
+                : 'Sign in to access your Gateway Dashboard'}
             </p>
           </div>
 

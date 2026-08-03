@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
@@ -11,16 +11,34 @@ import {
   CheckCircle2,
   Copy,
   Check,
+  Activity,
+  Cpu,
+  Lock,
+  Globe,
 } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
-  const [copied, setCopied] = React.useState(false);
+  const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<'curl' | 'js' | 'python'>('curl');
 
-  const sampleCurl = `curl -i http://localhost:8080/orders \\
-  -H "X-Gateway-Key: your_project_api_key_here"`;
+  const codeSnippets = {
+    curl: `curl -i http://localhost:8080/orders \\
+  -H "X-Gateway-Key: your_project_api_key_here"`,
+    js: `const response = await fetch('http://localhost:8080/orders', {
+  headers: {
+    'X-Gateway-Key': 'your_project_api_key_here'
+  }
+});
+const data = await response.json();`,
+    python: `import requests
+
+headers = {"X-Gateway-Key": "your_project_api_key_here"}
+response = requests.get("http://localhost:8080/orders", headers=headers)
+print(response.json())`,
+  };
 
   const copyCode = () => {
-    navigator.clipboard.writeText(sampleCurl);
+    navigator.clipboard.writeText(codeSnippets[activeTab]);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -39,7 +57,7 @@ export const HomePage: React.FC = () => {
           </div>
 
           <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-bold text-stone-900 tracking-tight max-w-4xl mx-auto leading-tight mb-6">
-            Control Layer Architecture for <span className="text-orange-600">Modern Gateways</span>
+            High-Performance API Gateway for <span className="text-orange-600">Modern Applications</span>
           </h1>
 
           <p className="font-body text-lg sm:text-xl text-stone-600 max-w-2xl mx-auto mb-10 leading-relaxed">
@@ -55,29 +73,54 @@ export const HomePage: React.FC = () => {
               <span>Create Account</span>
             </Link>
           </div>
+
         </div>
       </section>
 
       {/* Code Snippet / Quick Start */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-20">
         <div className="bg-stone-900 text-stone-100 rounded-2xl shadow-xl border border-stone-800 p-6 sm:p-8">
-          <div className="flex items-center justify-between pb-4 border-b border-stone-800 mb-4">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-500/80" />
-              <div className="w-3 h-3 rounded-full bg-amber-500/80" />
-              <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
-              <span className="text-xs text-stone-400 font-mono-url ml-2">Gateway Request Example</span>
+          <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-stone-800 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-red-500/80" />
+                <div className="w-3 h-3 rounded-full bg-amber-500/80" />
+                <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
+              </div>
+              <div className="flex items-center gap-1 text-xs bg-stone-800 p-1 rounded-lg">
+                <button
+                  onClick={() => setActiveTab('curl')}
+                  className={`px-2.5 py-1 rounded-md transition-colors ${activeTab === 'curl' ? 'bg-orange-600 text-white font-medium' : 'text-stone-400 hover:text-stone-200'
+                    }`}
+                >
+                  cURL
+                </button>
+                <button
+                  onClick={() => setActiveTab('js')}
+                  className={`px-2.5 py-1 rounded-md transition-colors ${activeTab === 'js' ? 'bg-orange-600 text-white font-medium' : 'text-stone-400 hover:text-stone-200'
+                    }`}
+                >
+                  JavaScript
+                </button>
+                <button
+                  onClick={() => setActiveTab('python')}
+                  className={`px-2.5 py-1 rounded-md transition-colors ${activeTab === 'python' ? 'bg-orange-600 text-white font-medium' : 'text-stone-400 hover:text-stone-200'
+                    }`}
+                >
+                  Python
+                </button>
+              </div>
             </div>
             <button
               onClick={copyCode}
               className="flex items-center gap-1.5 text-xs text-stone-400 hover:text-orange-400 transition-colors cursor-pointer"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? 'Copied!' : 'Copy'}</span>
+              <span>{copied ? 'Copied!' : 'Copy snippet'}</span>
             </button>
           </div>
           <pre className="font-mono-url text-xs sm:text-sm text-orange-300 overflow-x-auto leading-relaxed">
-            <code>{sampleCurl}</code>
+            <code>{codeSnippets[activeTab]}</code>
           </pre>
         </div>
       </section>
@@ -89,7 +132,7 @@ export const HomePage: React.FC = () => {
             Core Gateway Capabilities
           </h2>
           <p className="font-body text-stone-600 mt-2">
-            Configure every aspect of your gateway control plane seamlessly.
+            Configure every aspect of your gateway routing and security seamlessly.
           </p>
         </div>
 

@@ -28,7 +28,7 @@ export const Navbar: React.FC = () => {
               Mini Gateway
             </span>
             <span className="text-[10px] font-medium text-orange-600 uppercase tracking-widest leading-tight">
-              Control Layer
+              API Gateway
             </span>
           </div>
         </Link>
